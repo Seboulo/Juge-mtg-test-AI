@@ -29,22 +29,24 @@ async function searchAll(q) {
   let url = 'https://api.scryfall.com/cards/search?unique=cards&q=' + encodeURIComponent(q);
   while (url) {
     let res;
-    for (let attempt = 0; attempt < 4; attempt++) {
+    // Scryfall bloque quelques dizaines de secondes après beaucoup de requêtes (textes français juste avant) : on patiente.
+    for (let attempt = 0; attempt < 8; attempt++) {
       res = await fetch(url, { headers: HEADERS });
       if (res.status !== 429) break;
-      await sleep(1500 * (attempt + 1));
+      await sleep(5000 * (attempt + 1));
     }
     if (!res.ok) throw new Error(`Scryfall (${q}) a répondu ${res.status}`);
     const data = await res.json();
     for (const c of data.data || []) out.push(c.oracle_id || (c.card_faces && c.card_faces[0].oracle_id));
     url = data.has_more ? data.next_page : null;
-    await sleep(110);
+    await sleep(150);
   }
   return out;
 }
 
 async function fetchTags(indexOf) {
   const tags = {};
+  await sleep(30000);
   for (const [role, otags] of Object.entries(TAGS)) {
     const set = new Set();
     for (const t of otags) for (const id of await searchAll(`otag:${t} f:commander`)) if (indexOf.has(id)) set.add(indexOf.get(id));
@@ -63,7 +65,12 @@ async function fetchCombos(indexOf) {
   const variants = [];
   let seen = 0;
   // Le fichier fait près de 700 Mo une fois décompressé : on le lit au fil de l'eau.
-  const stream = chain([Readable.fromWeb(res.body), zlib.createGunzip(), parser(), pick({ filter: 'variants' }), streamArray()]);
+  // Selon le serveur, le fichier arrive compressé ou déjà décompressé par fetch : on regarde la signature gzip.
+  const body = Readable.fromWeb(res.body);
+  const first = await new Promise((ok, ko) => { body.once('readable', () => ok(body.read(2))); body.once('error', ko); });
+  if (first) body.unshift(first);
+  const gz = first && first[0] === 0x1f && first[1] === 0x8b;
+  const stream = chain([body, ...(gz ? [zlib.createGunzip()] : []), parser(), pick({ filter: 'variants' }), streamArray()]);
   for await (const { value: v } of stream) {
     seen++;
     if (v.status && v.status !== 'OK') continue;
