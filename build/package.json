@@ -1,0 +1,10 @@
+{
+  "name": "juge-mtg-commander-site",
+  "private": true,
+  "description": "Construit le site Juge MTG Commander (moteur de recherche et base de données).",
+  "scripts": {
+    "engine": "esbuild engine-entry.js --bundle --minify --charset=utf8 --format=iife --alias:fs=./shims/fs.js --alias:path=./shims/path.js --alias:zlib=./shims/empty.js --outfile=../site/engine.js",
+    "data": "node scripts/update-data.js"
+  },
+  "devDependencies": { "esbuild": "0.24.2" }
+}

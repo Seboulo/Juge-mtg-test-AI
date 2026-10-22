@@ -1,0 +1,52 @@
+# Publie le site sur GitHub Pages : à chaque modification, et chaque lundi pour mettre la base à jour
+# (cartes, rulings, liste d'interdiction, règles complètes, textes français).
+name: Site
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 5 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Installer les outils
+        working-directory: build
+        run: npm ci
+      - name: Mettre à jour la base
+        # Si Scryfall ou Wizards ne répondent pas, le site est publié avec la base précédente.
+        continue-on-error: true
+        working-directory: build
+        run: npm run data
+      - name: Construire le moteur de recherche
+        working-directory: build
+        run: npm run engine
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

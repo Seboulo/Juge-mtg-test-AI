@@ -1,0 +1,127 @@
+'use strict';
+// Assistants guidés : arbres de décision rédigés à partir des Comprehensive Rules, et petits outils de calcul.
+// Réponses : texte avec **gras** ; les numéros de règles deviennent cliquables.
+
+const ASSISTANTS = [
+  {
+    id: 'zone', icon: '🏰', title: 'Où va mon commandant ?',
+    desc: 'Détruit, exilé, renvoyé en main, mélangé… ce qui se passe et ce que tu peux choisir.',
+    keywords: ['zone de commandement', 'exile+commandant', 'exil+commandant', 'cimetiere+commandant', 'meurt+commandant', 'detruit+commandant', 'main+commandant', 'bibliotheque+commandant', 'melange+commandant', 'renvoie+commandant', 'oblivion', 'commandant va', 'clone+commandant', 'copie+commandant'],
+    start: 'start',
+    nodes: {
+      start: { q: 'Où l\'effet envoie-t-il ton commandant ?', opts: [
+        ['Au cimetière (détruit, sacrifié, contrecarré, défaussé, meulé…)', 'gy'],
+        ['En exil', 'ex'],
+        ['Dans ma main', 'hand'],
+        ['Dans ma bibliothèque (mélangé, au-dessus, au-dessous)', 'lib'],
+        ['Autre chose : copié, face cachée, phasing…', 'other'],
+      ] },
+      gy: { q: 'Veux-tu qu\'une capacité le récupère depuis le cimetière (réanimation, persistance, pernicieux…) ?', opts: [['Non, je veux le remettre dans la zone de commandement', 'gy_cz'], ['Oui, je préfère le laisser au cimetière', 'gy_keep']] },
+      gy_cz: { tone: 'ok', answer: 'Ton commandant va **réellement au cimetière** : s\'il venait du champ de bataille, il « meurt » et toutes les capacités de mort se déclenchent (la sienne, Blood Artist…). Puis, à la prochaine vérification des actions basées sur un état (avant que quiconque reçoive la priorité), tu peux le **déplacer dans la zone de commandement**. Le prochain lancement depuis la zone de commandement coûtera {2} de plus par lancement précédent depuis cette zone.', rules: ['903.9a', '704.6d', '700.4', '903.8'] },
+      gy_keep: { tone: 'warn', answer: 'Tu peux le laisser au cimetière. **Attention** : le choix de le déplacer n\'existe qu\'à la vérification des actions basées sur un état qui suit **immédiatement** son arrivée au cimetière. Si tu le laisses, tu ne pourras plus le remettre dans la zone de commandement plus tard depuis ce cimetière (il faudra qu\'il change à nouveau de zone). Exemple avec la persistance : si tu le mets dans la zone de commandement, la capacité de persistance se résoudra mais ne le trouvera plus au cimetière.', rules: ['903.9a', '704.3', '603.3'] },
+      ex: { q: 'L\'effet prévoit-il de le renvoyer sur le champ de bataille ?', opts: [
+        ['Oui, immédiatement, dans le même effet (Cloudshift, « exilez puis renvoyez »)', 'ex_flicker'],
+        ['Oui, plus tard (« au début de la prochaine étape de fin », ou « jusqu\'à ce que [Oblivion Ring] quitte le champ de bataille »)', 'ex_later'],
+        ['Non (Swords to Plowshares, Path to Exile…)', 'ex_cz'],
+      ] },
+      ex_flicker: { tone: 'ok', answer: 'Il revient **pendant la résolution du même effet**, avant toute vérification des actions basées sur un état : tu n\'as ni l\'occasion ni le besoin de le mettre dans la zone de commandement. Il revient comme un **nouvel objet** : sans marqueurs, sans Auras ni Équipements attachés, avec le mal d\'invocation. La taxe n\'augmente pas (il n\'a pas été lancé).', rules: ['903.9a', '400.7'] },
+      ex_later: { tone: 'warn', answer: 'Tu as **un choix à faire tout de suite** : à la vérification des actions basées sur un état qui suit son exil, tu peux le mettre dans la zone de commandement. Si tu le fais, il **ne reviendra pas** quand l\'effet aurait dû le renvoyer (il n\'est plus en exil). Si tu le laisses en exil pour qu\'il revienne plus tard, tu ne pourras plus changer d\'avis ensuite. Cas particulier : si le propriétaire de l\'Oblivion Ring quitte la partie, la carte exilée reste en exil pour toujours.', rules: ['903.9a', '610.3', '800.4d'] },
+      ex_cz: { tone: 'ok', answer: 'Il va en exil, puis à la prochaine vérification des actions basées sur un état tu peux le **mettre dans la zone de commandement**. Les effets qui se déclenchent quand il est exilé ou quand il quitte le champ de bataille se déclenchent normalement. Avec Path to Exile, son contrôleur peut toujours chercher son terrain de base.', rules: ['903.9a', '704.6d'] },
+      hand: { tone: 'ok', answer: 'C\'est un **effet de remplacement** : tu peux choisir de mettre ton commandant dans la zone de commandement **à la place**. Il ne va alors jamais dans ta main. Si tu acceptes qu\'il aille dans ta main, tu pourras le relancer depuis ta main **sans taxe**, et ce lancement n\'augmentera pas la taxe des prochains lancements depuis la zone de commandement.', rules: ['903.9b', '614.1', '903.8'] },
+      lib: { tone: 'ok', answer: 'C\'est un **effet de remplacement** : s\'il devait être mis dans ta bibliothèque (mélangé, placé au-dessus ou au-dessous), tu peux le mettre dans la zone de commandement **à la place**. Il ne passe jamais par la bibliothèque. C\'est vrai depuis n\'importe quelle zone (champ de bataille, pile, cimetière…).', rules: ['903.9b', '614.1'] },
+      other: { q: 'Que lui arrive-t-il ?', opts: [
+        ['Un autre permanent devient une copie de mon commandant (Clone, jeton copie)', 'o_copy'],
+        ['Mon commandant devient une copie d\'autre chose', 'o_becomes'],
+        ['Il est tourné face cachée', 'o_fd'],
+        ['Il phase (phasing)', 'o_phase'],
+      ] },
+      o_copy: { tone: 'no', answer: 'La copie **n\'est pas un commandant** : la désignation de commandant n\'est pas copiable. Ses blessures ne comptent pas comme blessures de commandant et elle ne peut pas aller dans la zone de commandement. Comme elle est légendaire, si son contrôleur contrôle aussi l\'original, la règle de légende s\'applique.', rules: ['903.3', '707.2', '704.5j'] },
+      o_becomes: { tone: 'ok', answer: 'Il **reste ton commandant**, quelles que soient ses nouvelles caractéristiques : ses blessures de combat restent des blessures de commandant et il peut toujours aller dans la zone de commandement.', rules: ['903.3'] },
+      o_fd: { tone: 'ok', answer: 'Il **reste ton commandant** même face cachée. S\'il quitte le champ de bataille, il est révélé et les règles habituelles de la zone de commandement s\'appliquent.', rules: ['903.3', '708'] },
+      o_phase: { tone: 'ok', answer: 'Le phasing **ne change pas de zone** : ton commandant reste sur le champ de bataille, traité comme s\'il n\'existait pas jusqu\'à ce qu\'il phase de nouveau. Il ne peut pas aller dans la zone de commandement et aucune capacité « quitte le champ de bataille » ne se déclenche.', rules: ['702.26'] },
+    },
+  },
+  {
+    id: 'dmg', icon: '⚔', title: 'Est-ce que ça compte comme blessures de commandant ?',
+    desc: 'Combat, copies, vol de commandant, infection, double initiative…',
+    keywords: ['blessures de commandant', 'degats de commandant', 'blessures+commandant', 'degats+commandant', 'commander damage', '21 blessures'],
+    start: 'start',
+    nodes: {
+      start: { q: 'Qu\'est-ce qui inflige les blessures ?', opts: [['Le commandant lui-même (la carte désignée comme commandant)', 'combat'], ['Une copie ou un jeton copie du commandant', 'no_copy']] },
+      no_copy: { tone: 'no', answer: '**Non.** Une copie n\'est pas un commandant : ses blessures ne comptent pas pour les 21 blessures de commandant.', rules: ['903.3', '903.10a'] },
+      combat: { q: 'Sont-ce des blessures de **combat** (en attaquant ou en bloquant, pendant l\'étape des blessures de combat) ?', opts: [['Oui', 'target'], ['Non, c\'est une capacité ou un effet (« inflige X blessures »)', 'no_noncombat']] },
+      no_noncombat: { tone: 'no', answer: '**Non.** Seules les blessures de **combat** comptent. Les blessures infligées par une capacité du commandant font perdre des points de vie normalement, mais n\'augmentent pas le compteur de blessures de commandant.', rules: ['903.10a'] },
+      target: { q: 'À qui ou à quoi sont-elles infligées ?', opts: [['À un joueur', 'prev'], ['À un planeswalker, une bataille ou une créature', 'no_target']] },
+      no_target: { tone: 'no', answer: '**Non.** Seules les blessures infligées à un **joueur** comptent.', rules: ['903.10a'] },
+      prev: { q: 'Les blessures sont-elles prévenues (Fog, protection…) ?', opts: [['Non, elles sont bien infligées', 'yes'], ['Oui, elles sont prévenues', 'no_prev']] },
+      no_prev: { tone: 'no', answer: '**Non.** Des blessures prévenues ne sont pas infligées : elles ne comptent pas.', rules: ['903.10a', '615.1'] },
+      yes: { tone: 'ok', answer: '**Oui, elles comptent.** Le total est suivi pour chaque commandant séparément et ne diminue jamais. Un joueur qui a subi **21 blessures de combat ou plus d\'un même commandant** perd la partie (action basée sur un état), même s\'il lui reste des points de vie. C\'est vrai **quel que soit le contrôleur** du commandant (s\'il a été volé, ses blessures comptent toujours pour ce commandant). La double initiative compte deux fois, et l\'infection compte aussi (le joueur reçoit des marqueurs poison ET des blessures de commandant).', rules: ['903.10a', '704.6c', '702.124d'] },
+    },
+  },
+  {
+    id: 'leave', icon: '🚪', title: 'Un joueur quitte la partie',
+    desc: 'Il perd ou concède : que deviennent ses cartes, les cartes volées, le monarque, son tour ?',
+    keywords: ['quitte la partie', 'concede', 'perd la partie', 'elimine', 'mort', 'joueur perd'],
+    start: 'start',
+    nodes: {
+      start: { q: 'Qu\'est-ce qui t\'intéresse ?', opts: [
+        ['Les cartes et jetons qui lui appartiennent', 'owned'],
+        ['Un de MES permanents qu\'il contrôlait (il me l\'avait volé)', 'mine'],
+        ['Un permanent à LUI que je contrôle (je le lui avais volé)', 'stolen'],
+        ['Une carte exilée par un de ses permanents (Oblivion Ring…)', 'oring'],
+        ['Ses sorts et capacités sur la pile, ou qui allaient se déclencher', 'stack'],
+        ['Le monarque ou l\'initiative', 'monarch'],
+        ['C\'était son tour', 'turn'],
+      ] },
+      owned: { tone: 'ok', answer: 'Tous les objets dont il est **propriétaire** quittent la partie, **dans toutes les zones** (champ de bataille, pile, cimetière, exil…), même ceux contrôlés par d\'autres joueurs. Les jetons qu\'il a créés lui appartiennent (le créateur d\'un jeton en est le propriétaire) : ils partent aussi.', rules: ['800.4a', '111.2'] },
+      mine: { tone: 'ok', answer: 'Les effets qui lui donnaient le contrôle prennent fin : **tu récupères ton permanent** immédiatement.', rules: ['800.4a'] },
+      stolen: { tone: 'no', answer: 'Il lui appartient : **il quitte la partie** avec lui, même si c\'est toi qui le contrôles.', rules: ['800.4a'] },
+      oring: { tone: 'no', answer: 'Son Oblivion Ring quitte la partie, mais sa capacité « quand il quitte le champ de bataille » serait contrôlée par un joueur qui n\'est plus là : elle n\'est **pas mise sur la pile**. La carte exilée **reste en exil**. Même chose pour un retour différé (« au début de la prochaine étape de fin ») qu\'il contrôlait.', rules: ['800.4a', '800.4d'] },
+      stack: { tone: 'ok', answer: 'Ses sorts (cartes qu\'il possède) quittent la partie et ses capacités sur la pile cessent d\'exister. Ses capacités déclenchées qui devaient être mises sur la pile ne le sont pas. Si un effet lui demandait de payer un coût, ce coût n\'est pas payé ; si un effet lui demandait un autre choix, le contrôleur de l\'effet désigne un autre joueur.', rules: ['800.4a', '800.4d', '800.4f', '800.4g'] },
+      monarch: { tone: 'ok', answer: 'Si le monarque quitte la partie, **le joueur actif devient le monarque**. Si c\'est le joueur actif qui part, le monarque devient le **joueur suivant** dans l\'ordre du tour. Même principe pour l\'initiative.', rules: ['725.4', '726.4'] },
+      turn: { tone: 'ok', answer: 'Le tour **continue jusqu\'à son terme sans joueur actif**. Quand le joueur actif devrait recevoir la priorité, c\'est le joueur suivant qui la reçoit. Les effets qui duraient « jusqu\'à son prochain tour » durent jusqu\'au moment où ce tour aurait commencé.', rules: ['800.4j', '800.4m'] },
+    },
+  },
+  {
+    id: 'repl', icon: '🔀', title: 'Plusieurs effets de remplacement',
+    desc: 'Doubling Season, Rest in Peace, « au lieu de »… qui choisit l\'ordre et comment ?',
+    keywords: ['remplacement', 'au lieu', 'a la place', 'doubling season', 'rest in peace', 'prevention', 'double'],
+    start: 'start',
+    nodes: {
+      start: { q: 'Qui ou quoi est affecté par l\'événement ?', opts: [['Un joueur (il perd des points de vie, pioche, subit des blessures…)', 'player'], ['Un objet (une créature meurt, une carte change de zone, un jeton est créé…)', 'object']] },
+      player: { tone: 'ok', answer: 'C\'est **le joueur affecté** qui choisit dans quel ordre appliquer les effets.', next: 'steps', rules: ['616.1'] },
+      object: { tone: 'ok', answer: 'C\'est **le contrôleur de l\'objet affecté** (ou son propriétaire s\'il n\'a pas de contrôleur, par ex. une carte dans un cimetière) qui choisit l\'ordre. Pour des jetons créés sous ton contrôle, c\'est toi.', next: 'steps', rules: ['616.1'] },
+      steps: { tone: 'ok', answer: 'Méthode : on applique **un effet à la fois**. Priorité obligatoire, dans cet ordre : 1) les effets d\'auto-remplacement de la carte elle-même ; 2) ceux qui modifient sous quel contrôle un objet arrive ; 3) ceux qui font arriver un objet comme copie ; 4) ceux qui le font arriver sur sa face arrière. Ensuite, n\'importe lequel au choix. Après chaque application, on regarde quels effets s\'appliquent encore à l\'événement modifié. **Chaque effet ne s\'applique qu\'une seule fois** à un même événement. Exemple : deux effets « inflige le double » transforment 2 blessures en 8, pas en un nombre infini.', rules: ['616.1a', '616.1b', '616.1c', '616.1d', '616.1e', '616.1f', '614.5'] },
+    },
+  },
+  {
+    id: 'fizzle', icon: '🎯', title: 'Mon sort se résout-il ?',
+    desc: 'Cibles devenues illégales, hexproof, protection, sort contrecarré.',
+    keywords: ['cible', 'illegal', 'fizzle', 'hexproof', 'protection', 'resout', 'contrecarre'],
+    start: 'start',
+    nodes: {
+      start: { q: 'Le sort ou la capacité a-t-il des cibles ?', opts: [['Oui', 't1'], ['Non (« chaque », « toutes les créatures »…)', 'nt']] },
+      nt: { tone: 'ok', answer: 'Sans cible, il **se résout normalement** : la défense talismanique, le linceul et la protection (pour la partie ciblage) ne l\'arrêtent pas. Seul un contresort peut l\'empêcher.', rules: ['608.2', '702.16'] },
+      t1: { q: 'Au moment de la résolution, combien de ses cibles sont encore légales ?', opts: [['Aucune', 'none'], ['Certaines', 'some'], ['Toutes', 'all']] },
+      none: { tone: 'no', answer: 'Il **ne se résout pas** : il est retiré de la pile et mis au cimetière, sans aucun effet (même les parties qui ne visaient pas de cible). Ce n\'est pas un « contresort » au sens des cartes qui parlent de sorts contrecarrés.', rules: ['608.2b'] },
+      some: { tone: 'warn', answer: 'Il **se résout**, mais il n\'affecte pas les cibles illégales et ne fait rien qui les concerne. Le reste de l\'effet s\'applique normalement.', rules: ['608.2b'] },
+      all: { tone: 'ok', answer: 'Il se résout normalement. Rappel : une cible devient illégale si elle a quitté sa zone, si elle a acquis la défense talismanique (contre un adversaire), le linceul ou une protection pertinente, ou si elle ne correspond plus à ce que demandait le sort.', rules: ['608.2b', '702.11', '702.16'] },
+    },
+  },
+  { id: 'apnap', icon: '📚', title: 'Ordre des capacités déclenchées (APNAP)', desc: 'Plusieurs joueurs ont des déclenchements en même temps : calcule l\'ordre de la pile.', keywords: ['apnap', 'ordre', 'declenchee', 'declenchement', 'meme temps', 'pile'], tool: 'apnap' },
+  { id: 'layers', icon: '🧱', title: 'Calculateur de couches', desc: 'Plusieurs effets continus modifient le même permanent : dans quel ordre les appliquer ?', keywords: ['couche', 'couches', 'layer', 'horodatage', 'force', 'endurance', 'dependance'], tool: 'layers' },
+];
+
+// Couches : libellés pour le calculateur.
+const LAYERS = [
+  ['1', 'Couche 1 — Copie (Clone, « devient une copie »)'],
+  ['2', 'Couche 2 — Changement de contrôle'],
+  ['3', 'Couche 3 — Changement de texte'],
+  ['4', 'Couche 4 — Type, sous-type, supertype (Blood Moon, « devient un artefact »)'],
+  ['5', 'Couche 5 — Couleur'],
+  ['6', 'Couche 6 — Ajout ou retrait de capacités, marqueurs de mot-clé (« gagne le vol », « perd toutes ses capacités »)'],
+  ['7a', 'Couche 7a — Capacité qui définit la force/endurance (« */* égal au nombre de… »)'],
+  ['7b', 'Couche 7b — Force/endurance fixées à une valeur (« devient 0/1 », « a une force de base de 4 »)'],
+  ['7c', 'Couche 7c — Modifications (+1/+1, −2/−2, marqueurs +1/+1 et −1/−1)'],
+  ['7d', 'Couche 7d — Inversion de la force et de l\'endurance'],
+];

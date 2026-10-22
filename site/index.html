@@ -1,0 +1,466 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Juge MTG Commander</title>
+<meta name="description" content="Aide aux règles de Magic: The Gathering en Commander, en français : questions, cartes et rulings, règles complètes, vérification de deck, suivi de partie.">
+<meta name="theme-color" content="#14121a">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:wght@500;600;700&family=Source+Sans+3:wght@400;600;700&display=swap">
+<style>
+:root {
+  --bg: #f5f0e6; --bg2: #fffcf6; --bg3: #ece4d4; --line: #dacfb9;
+  --text: #241d14; --muted: #6d6352; --gold: #a8782a; --gold2: #7d5512; --accent: #6b4fc2;
+  --ok: #2c7a4c; --warn: #9a5f12; --bad: #b0333f; --violet: #5d3fb8; --teal: #1f7f75;
+  --ok-bg: #e0efe4; --bad-bg: #f6dfe0; --warn-bg: #f4e7cf; --chosen-bg: #f1e2bf;
+  --W: #f8f3d8; --U: #3d8fd6; --B: #3b3540; --R: #d9533f; --G: #3e9a5b; --C: #b9b3c2;
+  --serif: "Spectral", Georgia, "Times New Roman", serif;
+  --sans: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #14121a; --bg2: #1c1924; --bg3: #262230; --line: #353042;
+  --text: #ece8f4; --muted: #9b94ab; --gold: #d9b26a; --gold2: #f0cf8a; --accent: #8f6be8;
+  --ok: #5cc28a; --warn: #e3a64f; --bad: #e0626a; --violet: #b9a4ff; --teal: #6fd3c8;
+  --ok-bg: #1f2a24; --bad-bg: #43202a; --warn-bg: #3c2f1a; --chosen-bg: #3a3122; color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --bg: #14121a; --bg2: #1c1924; --bg3: #262230; --line: #353042;
+  --text: #ece8f4; --muted: #9b94ab; --gold: #d9b26a; --gold2: #f0cf8a; --accent: #8f6be8;
+  --ok: #5cc28a; --warn: #e3a64f; --bad: #e0626a; --violet: #b9a4ff; --teal: #6fd3c8;
+  --ok-bg: #1f2a24; --bad-bg: #43202a; --warn-bg: #3c2f1a; --chosen-bg: #3a3122; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+:root { padding-top: env(safe-area-inset-top, 0px); }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.55 var(--sans); }
+h1, h2, h3, .page-title, .brand strong { font-family: var(--serif); text-wrap: balance; }
+a { color: var(--gold2); }
+code { background: var(--bg3); padding: 1px 6px; border-radius: 4px; font-size: 0.92em; }
+.hidden { display: none !important; }
+.muted { color: var(--muted); }
+.small { font-size: 14px; }
+.linkish { background: none; border: 0; padding: 0; color: var(--muted); font: inherit; font-size: 14px; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.linkish:hover { color: var(--gold2); }
+
+.app { display: grid; grid-template-columns: 236px minmax(0, 1fr); min-height: 100vh; }
+.sidebar { position: sticky; top: env(safe-area-inset-top, 0px); height: 100vh; background: var(--bg2); border-right: 1px solid var(--line); display: flex; flex-direction: column; padding: 18px 12px; padding-left: max(12px, env(safe-area-inset-left, 0px)); }
+.brand { display: flex; gap: 10px; align-items: center; padding: 0 8px 18px; }
+.brand .logo { font-size: 30px; color: var(--gold); }
+.brand strong { display: block; font-size: 19px; color: var(--gold2); line-height: 1.2; }
+.brand small { color: var(--muted); letter-spacing: .12em; text-transform: uppercase; font-size: 11px; }
+nav { display: flex; flex-direction: column; gap: 4px; }
+.tab { display: flex; gap: 10px; align-items: center; text-align: left; background: none; border: 0; color: var(--text); padding: 10px 12px; border-radius: 8px; cursor: pointer; font: inherit; }
+.tab span { width: 20px; text-align: center; }
+.tab:hover { background: var(--bg3); }
+.tab.active { background: var(--bg3); color: var(--gold2); box-shadow: inset 3px 0 0 var(--gold); }
+.db-status { margin-top: auto; font-size: 13px; color: var(--muted); padding: 10px; border-top: 1px solid var(--line); }
+.db-status b { color: var(--text); }
+main { min-width: 0; padding-block: 0 40px; padding-left: max(26px, env(safe-area-inset-left, 0px)); padding-right: max(26px, env(safe-area-inset-right, 0px)); }
+.panel { display: none; padding-top: 20px; }
+.panel.active { display: block; }
+
+.btn { text-decoration: none; display: inline-block; background: var(--bg3); color: var(--text); border: 1px solid var(--line); padding: 8px 14px; border-radius: 8px; cursor: pointer; font: inherit; }
+.btn:hover { border-color: var(--gold); }
+.btn.primary { background: linear-gradient(180deg, #e2bd74, #b98f45); color: #1b1408; border: 0; font-weight: 600; }
+.btn:disabled { opacity: .5; cursor: default; }
+input[type=text], input[type=search], select, textarea { background: var(--bg2); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 9px 12px; font: inherit; width: 100%; }
+input:focus, textarea:focus, select:focus { outline: none; border-color: var(--gold); }
+
+.loadbar { background: var(--bg2); border: 1px solid var(--gold); border-radius: 10px; padding: 12px 16px; margin-top: 16px; }
+.progress { height: 6px; background: var(--bg3); border-radius: 3px; margin-top: 8px; overflow: hidden; }
+#progressFill { height: 100%; width: 0; background: linear-gradient(90deg, #b98f45, #f0cf8a); transition: width .3s; }
+
+.report { margin-top: 14px; padding-top: 10px; border-top: 1px dashed var(--line); }
+.report-form { margin-top: 8px; display: flex; flex-direction: column; gap: 8px; max-width: 560px; }
+.report-form label { display: flex; flex-direction: column; gap: 4px; color: var(--muted); font-size: 14px; }
+.report-form .btn { align-self: flex-start; }
+.new-list { margin: 6px 0 0; padding-left: 20px; }
+.new-list li { margin: 4px 0; }
+.faq-count { color: var(--muted); font-size: 15px; font-family: var(--sans); font-weight: 400; }
+#reportList ul { padding-left: 18px; margin: 0; }
+#reportList li { margin-bottom: 8px; }
+/* Juge */
+.conversation { }
+.welcome { max-width: 760px; margin: 6vh auto 0; text-align: center; }
+.welcome h1 { color: var(--gold2); font-weight: 600; }
+.examples { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; margin-top: 22px; text-align: left; }
+.example { background: var(--bg2); border: 1px solid var(--line); color: var(--text); padding: 12px; border-radius: 10px; cursor: pointer; font: inherit; font-size: 14px; text-align: left; }
+.example:hover { border-color: var(--gold); }
+.qa { max-width: 900px; margin: 0 auto 26px; }
+.q-bubble { background: var(--bg3); border-radius: 12px 12px 4px 12px; padding: 10px 14px; margin-left: auto; width: fit-content; max-width: 80%; white-space: pre-wrap; }
+.a-block { margin-top: 12px; background: var(--bg2); border: 1px solid var(--line); border-radius: 12px; padding: 16px 20px; }
+.a-block h2 { font-size: 16px; color: var(--gold2); margin: 14px 0 6px; }
+.a-block h2:first-child { margin-top: 0; }
+.a-block h3 { font-size: 15px; margin: 10px 0 4px; }
+.a-block ul { padding-left: 22px; margin: 6px 0; }
+.a-block p { margin: 6px 0; }
+.thinking { color: var(--muted); font-style: italic; }
+.thinking::after { content: '▍'; animation: blink 1s steps(2) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+.error { color: var(--bad); }
+.sources { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+.sources h4 { margin: 8px 0 2px; font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+.pill-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.pill { background: var(--bg3); border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; font-size: 13px; cursor: pointer; color: var(--text); }
+.pill:hover { border-color: var(--gold); }
+.faq-hit { background: var(--bg3); border-radius: 8px; padding: 10px 12px; }
+.faq-hit strong { color: var(--gold2); }
+.rule-ref { color: var(--gold2); border-bottom: 1px dotted var(--gold); cursor: pointer; }
+.card-ref { color: var(--violet); cursor: pointer; }
+
+.ask-bar { display: flex; gap: 10px; align-items: flex-end; padding-top: 12px; border-top: 1px solid var(--line); max-width: 960px; width: 100%; margin: 0 auto; }
+.ask-input { flex: 1; position: relative; }
+.ask-input textarea { resize: none; min-height: 52px; max-height: 200px; }
+.ask-actions { display: flex; flex-direction: column; gap: 8px; align-items: stretch; }
+.toggle { font-size: 13px; color: var(--muted); display: flex; gap: 6px; align-items: center; cursor: pointer; }
+.suggest { position: absolute; bottom: 100%; left: 0; right: 0; background: var(--bg2); border: 1px solid var(--line); border-radius: 8px; margin-bottom: 4px; max-height: 260px; overflow-y: auto; z-index: 5; }
+.suggest div { padding: 7px 12px; cursor: pointer; }
+.suggest div.sel, .suggest div:hover { background: var(--bg3); }
+
+/* Cartes */
+.search-head { display: flex; gap: 10px; margin-bottom: 12px; }
+.search-head .btn { white-space: nowrap; }
+.split { display: flex; gap: 16px; align-items: flex-start; }
+.results { list-style: none; margin: 0; padding: 0; width: 340px; flex-shrink: 0; max-height: 70vh; overflow-y: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--bg2); }
+.results li { padding: 9px 12px; border-bottom: 1px solid var(--line); cursor: pointer; }
+.results li:hover, .results li.sel { background: var(--bg3); }
+.results li small { display: block; color: var(--muted); font-size: 12px; }
+.detail { flex: 1; min-width: 0; background: var(--bg2); border: 1px solid var(--line); border-radius: 10px; padding: 18px 22px; }
+.card-title { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; flex-wrap: wrap; }
+.card-title h2 { margin: 0; color: var(--gold2); }
+.card-type { color: var(--muted); margin: 4px 0 12px; }
+.oracle { white-space: pre-wrap; background: var(--bg3); border-radius: 8px; padding: 12px 14px; }
+.badges { display: flex; gap: 6px; flex-wrap: wrap; margin: 12px 0; }
+.badge { border-radius: 6px; padding: 2px 9px; font-size: 13px; background: var(--bg3); }
+.badge.legal { background: var(--ok-bg); color: var(--ok); }
+.badge.banned { background: var(--bad-bg); color: var(--bad); }
+.badge.gc { background: var(--warn-bg); color: var(--warn); }
+.rulings { margin-top: 16px; }
+.rulings li { margin-bottom: 8px; }
+.rulings .date { color: var(--muted); font-size: 12px; margin-right: 6px; }
+.mana { display: inline-flex; align-items: center; justify-content: center; min-width: 19px; height: 19px; padding: 0 3px; border-radius: 50%; font-size: 11px; font-weight: 700; margin: 0 1px; vertical-align: 2px; background: var(--C); color: #1b1b1b; border: 1px solid #0006; }
+.mana.W { background: var(--W); } .mana.U { background: var(--U); color: #fff; } .mana.B { background: var(--B); color: #eee; }
+.mana.R { background: var(--R); color: #fff; } .mana.G { background: var(--G); color: #fff; }
+.mana.hybrid { border-radius: 40%; background: linear-gradient(135deg, #888, #ccc); }
+
+/* Règles */
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.chips button { background: var(--bg2); border: 1px solid var(--line); color: var(--text); border-radius: 999px; padding: 4px 11px; cursor: pointer; font: inherit; font-size: 13px; }
+.chips button:hover { border-color: var(--gold); }
+.rule-list { }
+.rule { padding: 9px 12px; border-left: 3px solid var(--line); margin-bottom: 6px; background: var(--bg2); border-radius: 0 8px 8px 0; white-space: pre-wrap; }
+.rule.title { border-left-color: var(--gold); font-weight: 600; }
+.rule .rid { color: var(--gold2); font-weight: 600; margin-right: 8px; cursor: pointer; }
+.rule .sec { display: block; color: var(--muted); font-size: 12px; }
+
+/* FAQ */
+.faq-list { display: flex; flex-direction: column; gap: 8px; }
+.faq-cat { color: var(--gold); text-transform: uppercase; letter-spacing: .1em; font-size: 12px; margin: 14px 0 2px; }
+details.faq { background: var(--bg2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; }
+details.faq summary { cursor: pointer; font-weight: 600; }
+details.faq p { margin: 10px 0 4px; }
+
+/* Paramètres */
+.card-box { background: var(--bg2); border: 1px solid var(--line); border-radius: 12px; padding: 16px 20px; margin-bottom: 16px; max-width: 760px; }
+.card-box h2 { margin-top: 0; font-size: 18px; color: var(--gold2); }
+.card-box label { display: block; margin: 10px 0; color: var(--muted); font-size: 13px; }
+.card-box label input, .card-box label select { margin-top: 4px; color: var(--text); font-size: 15px; }
+.row { display: flex; gap: 8px; align-items: center; }
+.row input { flex: 1; }
+.help { background: var(--bg3); border-radius: 8px; padding: 10px 12px; font-size: 13px; }
+.help ol { margin: 4px 0; padding-left: 20px; }
+.log { font-family: ui-monospace, Consolas, monospace; font-size: 13px; color: var(--muted); white-space: pre-wrap; }
+
+.modal { position: fixed; inset: 0; background: #000a; display: flex; align-items: center; justify-content: center; z-index: 20; }
+.modal-box { background: var(--bg2); border: 1px solid var(--line); border-radius: 12px; width: min(780px, 92vw); max-height: 84vh; overflow-y: auto; padding: 20px 24px; position: relative; }
+.modal-close { position: absolute; top: 8px; right: 12px; background: none; border: 0; color: var(--muted); font-size: 26px; cursor: pointer; }
+
+/* ---------- Version sans IA ---------- */
+.panel.scroll { overflow-y: auto; }
+.ask-bar.top { border-top: 0; border-bottom: 1px solid var(--line); padding: 0 0 12px; margin-bottom: 12px; align-items: stretch; }
+.ask-bar.top .btn { padding: 0 22px; }
+.suggest.down { bottom: auto; top: 100%; margin: 4px 0 0; }
+.best { background: var(--bg3); border-left: 3px solid var(--gold); border-radius: 0 10px 10px 0; padding: 12px 16px; }
+.best h2 { margin: 6px 0; font-size: 17px; color: var(--gold2); }
+.tag { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--gold); }
+.page-title { color: var(--gold2); font-weight: 600; margin: 4px 0; font-size: 24px; }
+.assist-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr)); gap: 12px; margin-top: 16px; }
+.assist-card { display: flex; flex-direction: column; gap: 6px; text-align: left; background: var(--bg2); border: 1px solid var(--line); border-radius: 12px; padding: 16px; cursor: pointer; color: var(--text); font: inherit; }
+.assist-card:hover { border-color: var(--gold); }
+.assist-card .ai { font-size: 26px; }
+.assist-card strong { color: var(--gold2); }
+.assist-view { max-width: 900px; }
+.assist-head { display: flex; gap: 14px; align-items: center; margin-bottom: 12px; }
+.assist-head h2 { margin: 0; color: var(--gold2); font-size: 20px; }
+.steps { display: flex; flex-direction: column; gap: 12px; margin-bottom: 14px; }
+.step { background: var(--bg2); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+.step-q { font-weight: 600; margin-bottom: 10px; }
+.opts { display: flex; flex-direction: column; gap: 6px; }
+.opt { text-align: left; background: var(--bg3); border: 1px solid var(--line); color: var(--text); border-radius: 8px; padding: 9px 12px; cursor: pointer; font: inherit; }
+.opt:hover { border-color: var(--gold); }
+.opt.chosen { border-color: var(--gold); background: var(--chosen-bg); color: var(--gold2); }
+.opt.dim { opacity: .45; }
+.step.answer { border-left: 4px solid var(--accent); }
+.step.answer.ok { border-left-color: var(--ok); }
+.step.answer.warn { border-left-color: var(--warn); }
+.step.answer.no { border-left-color: var(--bad); }
+.step.answer p { margin: 4px 0; }
+.card-box.wide { max-width: 1000px; }
+.card-box textarea { font-family: ui-monospace, Consolas, monospace; font-size: 13px; resize: vertical; }
+.ap-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr)); gap: 10px; }
+.ap-res { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+label.inline { display: inline-flex; gap: 8px; align-items: center; color: var(--muted); }
+label.inline select { width: auto; }
+.ly-row { margin-bottom: 8px; }
+.ly-row select { max-width: 520px; }
+.ok-t { color: var(--ok); } .bad-t { color: var(--bad); }
+.game-head { margin-bottom: 14px; flex-wrap: wrap; }
+.players { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); gap: 14px; }
+.player { background: var(--bg2); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.player.dead { border-color: var(--bad); opacity: .8; }
+.p-name { font-size: 18px; font-weight: 600; color: var(--gold2); outline: none; border-bottom: 1px dashed transparent; }
+.p-name:focus { border-bottom-color: var(--gold); }
+.p-dead { color: var(--bad); font-weight: 600; }
+.life { display: flex; align-items: center; justify-content: center; gap: 6px; }
+.life-v { font-size: 44px; font-weight: 700; min-width: 90px; text-align: center; }
+.btn.sm { padding: 3px 9px; font-size: 13px; }
+.counters { display: flex; flex-direction: column; gap: 6px; }
+.counters > div { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.cmd-dmg { border-top: 1px solid var(--line); padding-top: 8px; }
+.cd-row { display: flex; align-items: center; gap: 6px; margin: 4px 0; }
+.cd-row span { flex: 1; }
+.cd-row b { min-width: 26px; text-align: center; }
+.cd-row.near b { color: var(--warn); }
+.cd-row.lethal b { color: var(--bad); }
+.ly-row .ly-n { min-width: 18px; color: var(--gold2); }
+.ly-row .ly-d { flex: 1.2; }
+.ly-row .ly-l { flex: 1.4; }
+.ly-row .ly-dep { flex: 0.9; }
+.trx { position: relative; }
+.tr-label { font-size: 12px; color: var(--muted); margin: 8px 0 4px; }
+.tr-btn { background: none; border: 1px solid var(--line); color: var(--muted); border-radius: 6px; font-size: 12px; padding: 1px 8px; cursor: pointer; margin-top: 4px; }
+.tr-btn:hover { color: var(--gold2); border-color: var(--gold); }
+.tr-out:not(:empty) { margin-top: 6px; padding: 8px 10px; background: var(--ok-bg); border-left: 3px solid var(--ok); border-radius: 0 6px 6px 0; }
+.tr-fr { white-space: pre-wrap; }
+.fr-name { color: var(--gold); font-size: 16px; margin-top: 2px; }
+.oracle.fr { border-left: 3px solid var(--gold); margin-bottom: 4px; }
+.rule .trx { display: inline; }
+.rule .tr-src { display: inline; }
+.rule .tr-btn { margin-left: 8px; }
+
+/* Interactions entre cartes */
+.inter { background: var(--bg3); border-left: 3px solid var(--accent); border-radius: 0 10px 10px 0; padding: 12px 16px; margin-bottom: 14px; }
+.inter .tag { color: var(--violet); }
+.ipoint { padding: 8px 0; border-bottom: 1px solid var(--line); }
+.ipoint:last-of-type { border-bottom: 0; }
+.ipoint h3 { margin: 4px 0; font-size: 16px; color: var(--gold2); }
+.ipoint p { margin: 4px 0; }
+.roles { margin-top: 8px; }
+.roles summary { cursor: pointer; color: var(--muted); font-size: 14px; }
+.role-card { margin: 8px 0 4px; }
+.role-card ul { margin: 4px 0; padding-left: 20px; }
+.role-card li { margin: 3px 0; }
+.detect-note { background: var(--bg2); border: 1px dashed var(--line); border-radius: 8px; padding: 6px 10px; margin-bottom: 10px; color: var(--muted); }
+.detect-note .pill { font-size: 12px; padding: 2px 8px; }
+
+/* IA en ligne */
+.ai-bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+.ai-bar .btn { font-size: 13px; padding: 6px 12px; }
+.ai-answer { background: var(--bg3); border-left: 3px solid var(--teal); border-radius: 0 10px 10px 0; padding: 12px 16px; margin-bottom: 14px; }
+.ai-answer .tag { color: var(--teal); }
+.ai-answer h2 { font-size: 16px; margin: 10px 0 4px; color: var(--gold2); }
+
+/* ---------- Téléphone ---------- */
+@media (max-width: 860px) {
+  .app { display: block; }
+  .sidebar { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); padding: 12px max(16px, env(safe-area-inset-right, 0px)) 10px max(16px, env(safe-area-inset-left, 0px)); }
+  .brand { padding: 0; }
+  .brand .logo { font-size: 24px; }
+  .db-status { display: none; }
+  nav { position: fixed; z-index: 15; left: 0; right: 0; bottom: 0; flex-direction: row; gap: 2px; overflow-x: auto; background: var(--bg2); border-top: 1px solid var(--line);
+        padding: 4px max(8px, env(safe-area-inset-right, 0px)) calc(4px + env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-left, 0px)); scrollbar-width: none; }
+  .tab { flex: 1 1 0; min-width: 44px; flex-direction: column; gap: 0; padding: 6px 2px; font-size: 10.5px; text-align: center; white-space: nowrap; }
+  .tab span { font-size: 18px; width: auto; }
+  .tab.active { box-shadow: inset 0 3px 0 var(--gold); }
+  .tab .long { display: none; }
+  main { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-bottom: calc(90px + env(safe-area-inset-bottom, 0px)); }
+  .panel { padding-top: 14px; }
+  .ask-bar.top { flex-direction: column; }
+  .ask-bar.top .btn { padding: 10px; }
+  .welcome { margin-top: 2vh; text-align: left; }
+  .welcome h1 { font-size: 24px; }
+  .q-bubble { max-width: 100%; }
+  .a-block { padding: 14px; }
+  .split { flex-direction: column; }
+  .results { width: 100%; max-height: 40vh; }
+  .detail { width: 100%; padding: 14px; }
+  .ap-res { grid-template-columns: 1fr; }
+  .ly-row { flex-wrap: wrap; }
+  .ly-row .ly-d { flex: 1 1 100%; }
+  .row { flex-wrap: wrap; }
+  .modal { padding: max(12px, env(safe-area-inset-top, 0px)) max(12px, env(safe-area-inset-right, 0px)) max(12px, env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px)); }
+  .modal-box { width: 100%; max-height: 90vh; padding: 16px; }
+}
+@media (min-width: 861px) { .tab .short { display: none; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand"><span class="logo">⚖</span><div><strong>Juge MTG Commander</strong><small>Aide aux règles · en français</small></div></div>
+    <nav>
+      <button class="tab active" data-tab="juge"><span>🔎</span><b class="long">Rechercher</b><b class="short">Question</b></button>
+      <button class="tab" data-tab="assist"><span>🧭</span><b class="long">Assistants guidés</b><b class="short">Assistants</b></button>
+      <button class="tab" data-tab="cartes"><span>🃏</span><b class="long">Cartes et rulings</b><b class="short">Cartes</b></button>
+      <button class="tab" data-tab="partie"><span>❤</span><b class="long">Suivi de partie</b><b class="short">Partie</b></button>
+      <button class="tab" data-tab="deck"><span>✅</span><b class="long">Vérifier un deck</b><b class="short">Deck</b></button>
+      <button class="tab" data-tab="regles"><span>📖</span><b class="long">Règles complètes</b><b class="short">Règles</b></button>
+      <button class="tab" data-tab="faq"><span>❓</span><b class="long">FAQ Commander</b><b class="short">FAQ</b></button>
+      <button class="tab" data-tab="apropos"><span>⚙</span><b class="long">Paramètres</b><b class="short">Réglages</b></button>
+    </nav>
+    <div class="db-status" id="dbStatus">Chargement de la base…</div>
+  </aside>
+
+  <main>
+    <div id="loadBar" class="loadbar">
+      <div id="loadText">Démarrage…</div>
+      <div class="progress"><div id="progressFill"></div></div>
+      <div class="muted small">Rien à installer : la base (cartes, règles, textes français) se charge dans le navigateur, puis reste disponible hors ligne. La FAQ et les assistants fonctionnent déjà.</div>
+    </div>
+
+    <!-- RECHERCHE -->
+    <section id="tab-juge" class="panel active">
+      <form id="askForm" class="ask-bar top">
+        <div class="ask-input">
+          <textarea id="question" rows="2" placeholder="Ex. : Mon commandant meurt avec Blood Artist sur le champ de bataille, est-ce que ça déclenche ?"></textarea>
+          <div id="cardSuggest" class="suggest down hidden"></div>
+        </div>
+        <button type="submit" id="askBtn" class="btn primary">Rechercher</button>
+      </form>
+      <div id="conversation" class="conversation">
+        <div class="welcome">
+          <h1>Quelle est ta question de règles ?</h1>
+          <p>Écris ta question en français et cite les cartes par leur nom, en anglais ou en français, même approximatif. Le site reconnaît les cartes, explique leurs interactions, affiche la fiche qui correspond, les rulings officiels et les règles concernées. Avec une clé gratuite (Gemini ou Groq, dans Paramètres), une <b>IA</b> rédige en plus une réponse à partir de ce que le site a trouvé.</p>
+          <div class="examples">
+            <button type="button" class="example">Teysa Karlov double-t-elle les déclenchements de Blood Artist ?</button>
+            <button type="button" class="example">Mon commandant est exilé par Oblivion Ring, où va-t-il ?</button>
+            <button type="button" class="example">Que fait la hâte ?</button>
+            <button type="button" class="example">Grist, the Hunger Tide peut-il être mon commandant ?</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ASSISTANTS -->
+    <section id="tab-assist" class="panel">
+      <div id="assistMenu" class="assist-grid"></div>
+      <div id="assistView" class="assist-view hidden"></div>
+    </section>
+
+    <!-- DECK -->
+    <section id="tab-deck" class="panel">
+      <div class="card-box wide">
+        <h2>Vérifier un deck Commander</h2>
+        <p class="muted small">Colle ta liste (format Moxfield, Archidekt, MTG Arena… : « 1 Sol Ring » par ligne). Le commandant peut être indiqué dans une section « Commander » ou choisi ci-dessous.</p>
+        <label>Commandant(s)
+          <div class="row"><input id="cmd1" type="text" list="cmdList" placeholder="Commandant"><input id="cmd2" type="text" list="cmdList" placeholder="Second commandant (partenaire, optionnel)"></div>
+          <datalist id="cmdList"></datalist>
+        </label>
+        <textarea id="deckText" rows="14" placeholder="Commander&#10;1 Atraxa, Praetors' Voice&#10;&#10;Deck&#10;1 Sol Ring&#10;1 Arcane Signet&#10;..."></textarea>
+        <div class="row" style="margin-top:10px"><button id="deckCheck" class="btn primary">Vérifier</button><span class="muted small">Vérifié avec la base de cartes, sans rien envoyer.</span></div>
+      </div>
+      <div id="deckResult" class="card-box wide" hidden></div>
+    </section>
+
+    <!-- PARTIE -->
+    <section id="tab-partie" class="panel">
+      <div class="row game-head">
+        <label class="inline">Joueurs <select id="nbPlayers"><option>2</option><option>3</option><option selected>4</option><option>5</option><option>6</option></select></label>
+        <button id="newGame" class="btn">Nouvelle partie</button>
+        <span class="muted small">Touche un nom pour le modifier. Les compteurs sont gardés sur cet appareil.</span>
+      </div>
+      <div id="players" class="players"></div>
+    </section>
+
+    <!-- CARTES -->
+    <section id="tab-cartes" class="panel">
+      <div class="search-head">
+        <input id="cardSearch" type="search" placeholder="Nom de carte, en anglais ou en français…">
+        <button id="cardFrBtn" class="btn">Chercher le nom français en ligne</button>
+      </div>
+      <div class="split">
+        <ul id="cardResults" class="results"></ul>
+        <div id="cardDetail" class="detail"><p class="muted">Choisis une carte pour voir son texte Oracle, son texte français, sa légalité en Commander et ses rulings officiels.</p></div>
+      </div>
+    </section>
+
+    <!-- RÈGLES -->
+    <section id="tab-regles" class="panel">
+      <div class="search-head">
+        <input id="ruleSearch" type="search" placeholder="Mot-clé (français ou anglais) ou numéro de règle, ex. 903.9 ou « couches »">
+      </div>
+      <div class="chips" id="ruleChips">
+        <button data-r="903">903 Commander</button><button data-r="613">613 Couches</button><button data-r="614">614 Remplacement</button>
+        <button data-r="616">616 Plusieurs remplacements</button><button data-r="603">603 Capacités déclenchées</button><button data-r="704">704 Actions basées sur un état</button>
+        <button data-r="117">117 Priorité</button><button data-r="608">608 Résolution</button><button data-r="800">800 Multijoueur</button><button data-r="707">707 Copies</button>
+      </div>
+      <div id="ruleResults" class="rule-list"></div>
+    </section>
+
+    <!-- FAQ -->
+    <section id="tab-faq" class="panel">
+      <h1 class="page-title">FAQ Commander <span class="faq-count">· <span id="faqCount"></span> fiches</span></h1>
+      <div class="search-head"><input id="faqSearch" type="search" placeholder="Filtrer la FAQ…"></div>
+      <div id="faqList" class="faq-list"></div>
+    </section>
+
+    <!-- À PROPOS -->
+    <section id="tab-apropos" class="panel">
+      <div class="card-box">
+        <h2>IA en ligne (optionnelle, gratuite)</h2>
+        <p class="muted small">Une IA rédige une réponse à partir de ce que le site a trouvé (fiches, interactions, rulings, règles) et traduit les textes anglais en un clic. Les réponses du site restent affichées en dessous.</p>
+        <label>Service
+          <select id="aiProvider"><option value="">Aucun (pas d'IA)</option><option value="gemini">Google Gemini (clé gratuite)</option><option value="groq">Groq (clé gratuite)</option><option value="custom">Autre API compatible OpenAI</option></select>
+        </label>
+        <div id="aiFields">
+          <label>Clé API <input id="aiKey" type="text" autocomplete="off" spellcheck="false" placeholder="colle ta clé ici"></label>
+          <p class="muted small" id="aiKeyHelp"></p>
+          <label>Modèle (laisser vide = choix automatique) <input id="aiModel" type="text" autocomplete="off"></label>
+          <label id="aiBaseRow">Adresse de l'API <input id="aiBaseUrl" type="text" autocomplete="off" placeholder="https://…/v1"></label>
+          <label class="toggle check"><input type="checkbox" id="aiAuto" checked> Lancer la réponse de l'IA automatiquement à chaque question</label>
+          <div class="row"><button id="aiSave" class="btn primary">Enregistrer et tester</button><button id="aiForget" class="btn">Effacer la clé</button></div>
+          <p id="aiMsg" class="muted small"></p>
+          <p class="muted small">La clé reste uniquement dans ce navigateur, sur cet appareil. Elle n'est envoyée qu'au service choisi.</p>
+        </div>
+        <p class="muted small">Sans clé, « 💬 Demander à Claude » sous chaque réponse copie ta question avec les règles trouvées et ouvre claude.ai : il suffit de coller et d'envoyer. Un compte Claude gratuit suffit. « 🌐 Traduire » ouvre alors Google Traduction.</p>
+      </div>
+      <div class="card-box">
+        <h2>Base de données</h2>
+        <p id="dbDetail" class="muted"></p>
+        <p class="muted small">Mise à jour automatique chaque semaine (nouvelles cartes, rulings, liste d'interdiction, règles complètes). Après une première visite, le site marche aussi hors ligne. Sur téléphone, « Ajouter à l'écran d'accueil » l'installe comme une application.</p>
+      </div>
+      <div class="card-box">
+        <h2>Tes signalements</h2>
+        <p class="muted small">Le bouton « 👎 Pas la bonne réponse ? » sous chaque réponse sert à corriger ou compléter les fiches.</p>
+        <div id="reportList"></div>
+      </div>
+      <div class="card-box">
+        <h2>Avertissement</h2>
+        <p class="muted small">Juge MTG Commander est une aide aux règles non officielle. Les fiches sont rédigées à l'avance à partir des règles complètes et des rulings officiels. Pour une situation très particulière, vérifie les règles citées (touche un numéro) ou demande à un juge. Magic: The Gathering est une marque de Wizards of the Coast. Données de cartes : <a href="https://scryfall.com" target="_blank" rel="noopener">Scryfall</a>. Règles : <a href="https://magic.wizards.com/en/rules" target="_blank" rel="noopener">magic.wizards.com/en/rules</a>.</p>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div id="modal" class="modal hidden"><div class="modal-box"><button class="modal-close" id="modalClose" aria-label="Fermer">×</button><div id="modalBody"></div></div></div>
+<script>window.JUGE_CONFIG = { repo: "Seboulo/Juge-mtg-test-AI" };</script>
+<script src="engine.js"></script>
+<script src="assistants.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
