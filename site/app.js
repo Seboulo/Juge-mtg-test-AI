@@ -704,6 +704,6 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal
   loadSettings();
   refreshStatus();
   juge.load();
-  if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+  if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).catch(() => {});
   await ready;
 })();
