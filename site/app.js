@@ -370,11 +370,28 @@ $('#cardFrBtn').addEventListener('click', async () => {
   else renderCardList(r);
 });
 
+// Images Scryfall : chemin gardé dans la base (« front/f/b/….jpg »), sinon recherche par nom.
+const imgUrl = (path, name, size = 'normal') => path ? `https://cards.scryfall.io/${size}/${path}` : `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(name.split(' // ')[0])}&format=image&version=${size}`;
+function cardImages(c) {
+  const imgs = [];
+  if (c.imgFr) imgs.push({ src: imgUrl(c.imgFr, c.name), label: 'Français' });
+  imgs.push({ src: imgUrl(c.img, c.name), label: c.imgFr ? 'Anglais' : '' });
+  if (c.img2) imgs.push({ src: imgUrl(c.img2, c.name), label: 'Verso' });
+  return `<div class="card-imgs"><img class="card-img" onerror="this.hidden=true" src="${esc(imgs[0].src)}" alt="${esc(c.nameFr || c.name)}" loading="lazy" referrerpolicy="no-referrer">${imgs.length > 1 ? `<div class="img-tabs">${imgs.map((x, i) => `<button class="pill img-tab ${i ? '' : 'on'}" data-src="${esc(x.src)}">${esc(x.label)}</button>`).join('')}</div>` : ''}</div>`;
+}
+document.addEventListener('click', (e) => {
+  const t = e.target.closest('.img-tab');
+  if (!t) return;
+  const box = t.closest('.card-imgs');
+  const im = $('.card-img', box); im.hidden = false; im.src = t.dataset.src;
+  $$('.img-tab', box).forEach(x => x.classList.toggle('on', x === t));
+});
+
 function cardHtml(c, compact = false) {
   if (!c) return '<p class="muted">Carte introuvable.</p>';
   const [label, cls] = LEGAL[c.cmdr] || [c.cmdr, ''];
   const ci = c.ci.length ? c.ci.map(x => `<span class="mana ${x}" title="${COLORS[x]}">${x}</span>`).join('') : 'Incolore';
-  return `${compact ? `<div style="text-align:right">${manaHtml(c.mana)}</div>` : `<div class="card-title"><h2>${esc(c.name)}</h2><div>${manaHtml(c.mana)}</div></div>`}
+  return `<div class="card-layout">${cardImages(c)}<div class="card-info">${compact ? `<div style="text-align:right">${manaHtml(c.mana)}</div>` : `<div class="card-title"><h2>${esc(c.name)}</h2><div>${manaHtml(c.mana)}</div></div>`}
     ${c.nameFr ? `<div class="fr-name">${esc(c.nameFr)}</div>` : ''}
     <div class="card-type">${c.typeFr ? esc(c.typeFr) + ' · ' : ''}<span class="muted">${esc(c.type)}</span></div>
     ${c.textFr ? `<div class="oracle fr">${manaHtml(c.textFr)}${c.pt ? `\n\n<strong>${esc(c.pt)}</strong>` : ''}</div><p class="muted small">Texte français imprimé (traduction officielle). Il peut être moins à jour que le texte Oracle anglais ci-dessous, qui fait foi.</p>` : ''}
@@ -382,8 +399,31 @@ function cardHtml(c, compact = false) {
     <div class="badges"><span class="badge ${cls}">${label}</span><span class="badge">Identité couleur : ${ci}</span>${c.canCommand ? '<span class="badge legal">Peut être commandant</span>' : ''}${c.gc ? '<span class="badge gc">Game Changer</span>' : ''}</div>
     <div class="rulings"><h3>Rulings officiels (${c.rulings.length})${c.rulings.length ? ' <span class="muted small">en anglais</span>' : ''}</h3>
     ${c.rulings.length ? '<ul>' + c.rulings.map(r => `<li><span class="date">${esc(r.d)}</span>${trBlock(`<span>${manaHtml(r.t)}</span>`)}</li>`).join('') + '</ul>' : '<p class="muted">Aucun ruling publié pour cette carte.</p>'}</div>
-    ${compact ? '' : `<p><button class="btn ask-about" data-name="${esc(c.name)}">Rechercher une question sur cette carte</button></p>`}`;
+    ${compact ? '' : `<p><button class="btn ask-about" data-name="${esc(c.name)}">Rechercher une question sur cette carte</button></p>`}</div></div>`;
 }
+
+// Aperçu de la carte au survol d'un nom (ordinateur seulement).
+const preview = document.createElement('img');
+preview.className = 'hover-card'; preview.hidden = true; preview.alt = ''; preview.referrerPolicy = 'no-referrer';
+document.body.appendChild(preview);
+const hoverOk = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+document.addEventListener('mouseover', async (e) => {
+  if (!hoverOk) return;
+  const el = e.target.closest('[data-card], .card-ref');
+  if (!el) { preview.hidden = true; return; }
+  let src = el.dataset.img;
+  if (!src) {
+    const c = el.dataset.card ? await juge.getCard(el.dataset.card) : (await juge.searchCards(el.dataset.name))[0];
+    if (!c) return;
+    src = el.dataset.img = imgUrl(c.img, c.name);
+  }
+  const r = el.getBoundingClientRect();
+  preview.src = src;
+  preview.style.left = Math.min(window.innerWidth - 260, r.right + 12) + 'px';
+  preview.style.top = Math.max(8, Math.min(window.innerHeight - 360, r.top - 120)) + 'px';
+  preview.hidden = false;
+});
+document.addEventListener('scroll', () => { preview.hidden = true; }, true);
 document.addEventListener('click', (e) => {
   const b = e.target.closest('.ask-about');
   if (!b) return;
@@ -597,6 +637,39 @@ async function cmdSuggest(e) {
   const list = await juge.commanderCandidates(q);
   $('#cmdList').innerHTML = list.map(c => `<option value="${esc(c.name)}">`).join('');
 }
+// Decks enregistrés sur cet appareil.
+const readDecks = () => { try { return JSON.parse(localStorage.getItem('juge-decks')) || []; } catch { return []; } };
+const writeDecks = (d) => { try { localStorage.setItem('juge-decks', JSON.stringify(d)); } catch {} };
+function renderSavedDecks(sel = '') {
+  const d = readDecks();
+  $('#savedDecks').innerHTML = '<option value="">—</option>' + d.map((x, i) => `<option value="${i}" ${x.name === sel ? 'selected' : ''}>${esc(x.name)}</option>`).join('');
+  $('#deckDelete').hidden = !$('#savedDecks').value;
+}
+renderSavedDecks();
+$('#savedDecks').addEventListener('change', () => {
+  const x = readDecks()[+$('#savedDecks').value];
+  $('#deckDelete').hidden = !x;
+  if (!x) return;
+  $('#deckText').value = x.text; $('#cmd1').value = x.cmd1 || ''; $('#cmd2').value = x.cmd2 || '';
+  $('#deckSavedNote').textContent = '';
+});
+$('#deckSave').addEventListener('click', () => {
+  const text = $('#deckText').value.trim();
+  if (!text) { $('#deckSavedNote').textContent = 'Colle d\'abord une liste.'; return; }
+  const cmdLine = text.match(/^\s*commanders?\s*\n\s*\d*x?\s*(.+)$/im);
+  const name = $('#cmd1').value.trim() || (cmdLine && cmdLine[1].trim()) || 'Deck du ' + new Date().toLocaleDateString('fr-FR');
+  const d = readDecks().filter(x => x.name !== name);
+  d.unshift({ name, text, cmd1: $('#cmd1').value, cmd2: $('#cmd2').value, date: Date.now() });
+  writeDecks(d.slice(0, 50)); renderSavedDecks(name);
+  $('#deckSavedNote').textContent = `Enregistré sous « ${name} » sur cet appareil.`;
+});
+$('#deckDelete').addEventListener('click', () => {
+  const d = readDecks(); const i = +$('#savedDecks').value;
+  if (!d[i]) return;
+  if ($('#deckDelete').dataset.confirm !== '1') { $('#deckDelete').dataset.confirm = '1'; $('#deckDelete').textContent = 'Confirmer la suppression'; return; }
+  d.splice(i, 1); writeDecks(d); $('#deckDelete').dataset.confirm = ''; $('#deckDelete').textContent = 'Supprimer'; renderSavedDecks();
+  $('#deckSavedNote').textContent = 'Deck supprimé.';
+});
 try { $('#deckText').value = localStorage.getItem('deckText') || ''; $('#cmd1').value = localStorage.getItem('cmd1') || ''; $('#cmd2').value = localStorage.getItem('cmd2') || ''; } catch {}
 $('#deckCheck').addEventListener('click', async () => {
   if (!state.loaded) { $('#deckResult').hidden = false; $('#deckResult').innerHTML = '<p class="muted">La base de cartes est encore en cours de chargement, réessaie dans quelques secondes.</p>'; return; }
@@ -614,27 +687,77 @@ $('#deckCheck').addEventListener('click', async () => {
   const an = $('#deckAnalysis');
   if (!r.commanders.length || r.total < 40) { an.hidden = true; return; }
   an.hidden = false;
-  an.innerHTML = analysisHtml(await juge.analyzeDeck(r.entries));
+  an.innerHTML = '<h2>Analyse du deck</h2><p class="thinking">Analyse en cours (decks EDHREC du commandant, combos connus)…</p>';
+  const a = await juge.analyzeDeck(r.entries);
+  lastAnalysis = { a, r };
+  an.innerHTML = analysisHtml(a);
 });
 
 // ---------- Analyse du deck : rôles, courbe, couleurs, retraits et ajouts ----------
 const STATUS = { ok: ['ok', '✓'], low: ['low', 'manque'], high: ['high', 'trop'], info: ['info', 'peu'] };
 const COLOR_CSS = { W: 'W', U: 'U', B: 'B', R: 'R', G: 'G' };
+let lastAnalysis = null;
+const tile = (x, why) => `<button class="tile" data-card="${esc(x.id)}" title="${esc(x.name)}"><img onerror="this.hidden=true" src="${esc(imgUrl(x.img, x.name, 'small'))}" alt="" loading="lazy" referrerpolicy="no-referrer"><span class="tile-n">${esc(x.name)}${x.gc ? ' <span class="gc-dot">GC</span>' : ''}</span>${why ? `<span class="tile-w">${esc(why)}</span>` : ''}</button>`;
+const comboLine = (x) => `<div class="combo">${x.cards.map(c => `<span class="card-ref" data-name="${esc(c.name)}">${esc(c.name)}</span>`).join(' + ')}${x.requires.length ? ` <span class="muted small">(avec : ${x.requires.map(esc).join(', ')})</span>` : ''}<div class="muted small">→ ${x.produces.map(esc).join(' · ')}</div></div>`;
+
 function analysisHtml(a) {
   const maxCurve = Math.max(1, ...a.curve);
   const card = (x) => x.id ? `<button class="pill" data-card="${esc(x.id)}">${esc(x.name)}${x.gc ? ' <span class="gc-dot" title="Game Changer">GC</span>' : ''}</button>` : `<span class="pill static">${esc(x.name)}</span>`;
   const groups = {};
   for (const x of a.adds) (groups[x.group] ||= []).push(x);
+  const b = a.bracket, cb = a.combos;
   return `<h2>Analyse du deck</h2>
+    <div class="bracket b${b.level}"><div><span class="tr-label">Bracket estimé</span><b>${esc(b.label)}</b></div><ul class="small">${b.reasons.length ? b.reasons.map(x => `<li>${esc(x)}</li>`).join('') : '<li>aucun Game Changer, combo à 2 cartes ni destruction de terrains repérés</li>'}</ul><p class="muted small">Estimation d'après la liste seule (règles officielles des brackets). Le vrai niveau dépend aussi de l'intention et de la vitesse du deck : parles-en avant la partie.</p></div>
+    <div class="ai-deck"><button class="btn primary ai-deck-go">✨ Expliquer avec l'IA</button> <a class="btn ask-claude-deck" href="https://claude.ai/new" target="_blank" rel="noopener">💬 Demander à Claude</a><span class="ai-note muted small"></span><div class="ai-answer" hidden></div></div>
     <p class="muted small">Thème${a.themes.length > 1 ? 's' : ''} repéré${a.themes.length > 1 ? 's' : ''} dans le texte du commandant : ${a.themes.length ? a.themes.map(t => `<b>${esc(t)}</b>`).join(', ') : '<i>aucun thème net</i>'}. Les repères sont ceux des guides de construction Commander : ce sont des indications, pas des règles.</p>
     <div class="an-grid">${a.checks.map(c => `<details class="an-row ${STATUS[c.status][0]}"><summary><span class="an-label">${esc(c.label)}</span><span class="an-bar"><span style="width:${Math.min(100, c.count / Math.max(c.max, 1) * 100)}%"></span><i style="left:${c.min / Math.max(c.max, 1) * 100}%"></i></span><b>${c.count}</b><span class="an-target">${c.min}–${c.max}</span><span class="an-st">${STATUS[c.status][1]}</span></summary><p class="muted small">${esc(c.tip)}.${c.cards.length ? ' ' + c.cards.map(esc).join(', ') + '.' : ''}</p></details>`).join('')}</div>
     <h4>Courbe de mana <span class="muted small">· valeur moyenne ${a.avg} (hors terrains)</span></h4>
     <div class="curve">${a.curve.map((n, i) => `<div class="cv"><span class="cv-n">${n || ''}</span><span class="cv-bar" style="height:${n / maxCurve * 100}%"></span><span class="cv-l">${i === 7 ? '7+' : i}</span></div>`).join('')}</div>
     ${a.colors.length > 1 ? `<h4>Couleurs</h4><div class="colors">${a.colors.map(c => `<div class="col-row"><span class="mana ${COLOR_CSS[c.color]}">${c.color}</span> ${Math.round(c.pipShare * 100)} % des symboles de mana · <b>${c.sources}</b> terrains qui produisent du ${esc(c.name)}${c.low ? ' <span class="warn-t">· un peu juste</span>' : ''}</div>`).join('')}</div>` : ''}
-    ${a.cuts.length ? `<h4>À retirer en priorité</h4><p class="muted small">Cartes sans rôle clé (rampe, pioche, removal…) et sans lien avec le thème du commandant. À toi de juger : une carte peut avoir une bonne raison d'être là.</p><div class="pill-row">${a.cuts.map(card).join('')}</div>` : ''}
-    ${a.adds.length ? `<h4>À ajouter</h4><p class="muted small">Cartes très jouées en Commander (classement EDHREC) dans tes couleurs. <span class="gc-dot">GC</span> = Game Changer : elle fait monter le niveau (bracket) du deck.</p>${Object.entries(groups).map(([g, xs]) => `<div class="add-group"><div class="tr-label">${esc(g)}</div><div class="pill-row">${xs.map(card).join('')}</div></div>`).join('')}` : ''}
-    <p class="muted small">Touche une carte pour voir son texte. Analyse automatique à partir du texte Oracle : elle peut se tromper sur une carte inhabituelle.</p>`;
+    ${cb ? `<h4>Combos</h4>${cb.complete.length ? `<p class="muted small">${cb.complete.length} combo${cb.complete.length > 1 ? 's' : ''} connu${cb.complete.length > 1 ? 's' : ''} dans ta liste (Commander Spellbook) :</p>${cb.complete.slice(0, 12).map(comboLine).join('')}${cb.complete.length > 12 ? `<p class="muted small">… et ${cb.complete.length - 12} autres.</p>` : ''}` : '<p class="muted small">Aucun combo connu de Commander Spellbook dans ta liste.</p>'}
+      ${cb.near.length ? `<details class="near"><summary>${cb.near.length} combo${cb.near.length > 1 ? 's' : ''} à une carte près</summary>${cb.near.map(x => `<div class="combo"><b>Ajouter <span class="card-ref" data-name="${esc(x.missing.name)}">${esc(x.missing.name)}</span>${x.missing.gc ? ' <span class="gc-dot">GC</span>' : ''}</b> : ${x.cards.map(c => esc(c.name)).join(' + ')}${x.requires.length ? ` <span class="muted small">(avec : ${x.requires.map(esc).join(', ')})</span>` : ''}<div class="muted small">→ ${x.produces.map(esc).join(' · ')}</div></div>`).join('')}<p class="muted small">Un combo fait monter le niveau du deck : à garder pour les tables qui jouent en bracket 3 ou plus.</p></details>` : ''}` : ''}
+    ${a.cuts.length ? `<h4>À retirer en priorité</h4><p class="muted small">${a.source === 'edhrec' ? `Cartes rarement jouées avec ${esc(a.edhrec.name)} sur EDHREC, en commençant par celles qui n'ont pas de rôle clé.` : 'Cartes sans rôle clé (rampe, pioche, removal…) et sans lien avec le thème du commandant.'} À toi de juger : une carte peut avoir une bonne raison d'être là.</p><div class="pill-row">${a.cuts.map(card).join('')}</div>` : ''}
+    ${a.adds.length ? `<h4>À ajouter</h4><p class="muted small">${a.source === 'edhrec' ? `D'après ${a.edhrec.decks ? a.edhrec.decks.toLocaleString('fr-FR') + ' ' : 'les '}decks ${esc(a.edhrec.name)} publiés sur <a href="${esc(a.edhrec.url)}" target="_blank" rel="noopener">EDHREC</a> : pourcentage des decks qui jouent la carte, et synergie (à quel point elle est plus jouée avec ce commandant qu'ailleurs).` : 'Commandant introuvable sur EDHREC (ou pas de connexion) : cartes très jouées en Commander en général dans tes couleurs.'} <span class="gc-dot">GC</span> = Game Changer : elle fait monter le bracket.</p>${Object.entries(groups).map(([g, xs]) => `<div class="add-group"><div class="tr-label">${esc(g)}</div><div class="tiles">${xs.map(x => tile(x, x.why)).join('')}</div></div>`).join('')}` : ''}
+    <p class="muted small">Touche une carte pour voir son texte. Rôles des cartes d'après les étiquettes Scryfall Tagger (ou le texte Oracle pour les cartes récentes) : l'analyse peut se tromper sur une carte inhabituelle.</p>`;
 }
+
+// Résumé de l'analyse envoyé à l'IA (ou copié pour Claude).
+function deckSummary() {
+  const { a, r } = lastAnalysis;
+  const L = [`Commandant(s) : ${a.commanders.join(' + ')} · identité ${r.identity} · ${r.total} cartes`, `Thèmes repérés : ${a.themes.join(', ') || 'aucun'}`,
+    `Bracket estimé : ${a.bracket.label} (${a.bracket.reasons.join(' ; ') || 'rien de notable'})`,
+    'Rôles : ' + a.checks.map(c => `${c.label} ${c.count} (repère ${c.min}-${c.max})`).join(' ; '),
+    `Valeur de mana moyenne : ${a.avg}`];
+  if (a.combos && a.combos.complete.length) L.push('Combos dans la liste : ' + a.combos.complete.slice(0, 8).map(x => x.cards.map(c => c.name).join(' + ') + ' → ' + x.produces.join(', ')).join(' ; '));
+  L.push('Retraits suggérés : ' + a.cuts.map(x => `${x.name} (${x.why})`).join(' ; '));
+  L.push('Ajouts suggérés : ' + a.adds.map(x => `${x.name} (${x.why})`).join(' ; '));
+  L.push('\nListe du deck :\n' + ($('#deckText').value || '').trim());
+  return L.join('\n');
+}
+document.addEventListener('click', async (e) => {
+  const go = e.target.closest('.ai-deck-go');
+  const cl = e.target.closest('.ask-claude-deck');
+  if (!go && !cl) return;
+  const wrap = e.target.closest('.ai-deck'), box = $('.ai-answer', wrap);
+  if (!lastAnalysis) return;
+  if (cl) {
+    try { await navigator.clipboard.writeText(juge.deckPrompt(deckSummary())); $('.ai-note', wrap).textContent = ' Analyse copiée : colle-la dans Claude qui vient de s\'ouvrir.'; }
+    catch { $('.ai-note', wrap).textContent = ' Copie impossible.'; }
+    return;
+  }
+  box.hidden = false;
+  if (!aiReady()) { box.innerHTML = `<p class="muted small">Aucune IA configurée. Ajoute une clé gratuite (Google Gemini ou Groq) dans <a href="#" class="go-params">Paramètres</a>, ou utilise « 💬 Demander à Claude ».</p>`; return; }
+  if (go.ctrl) { go.ctrl.abort(); return; }
+  const ctrl = go.ctrl = new AbortController();
+  let text = '';
+  const draw = (tail) => { box.innerHTML = '<span class="tag">Rédigé par l\'IA</span>' + (text ? markdown(text) : '<p class="thinking">L\'IA lit l\'analyse…</p>') + (tail || ''); };
+  draw(); go.textContent = '■ Arrêter';
+  try {
+    await juge.aiExplainDeck(state.settings, deckSummary(), (piece) => { text += piece; draw(); }, ctrl.signal, (m) => saveSettingsObj({ ...state.settings, aiModel: m }));
+    draw('<p class="muted small">Avis généré par une IA à partir de l\'analyse : garde ton propre jugement.</p>');
+  } catch (err) { draw(ctrl.signal.aborted ? '<p class="muted small">Interrompu.</p>' : `<p class="error">⚠ ${esc(err.message)}</p>`); }
+  go.ctrl = null; go.textContent = '↻ Relancer l\'IA';
+});
 
 // ---------- Suivi de partie ----------
 const gameState = loadGame();
@@ -642,10 +765,58 @@ function newPlayers(n) { return Array.from({ length: n }, (_, i) => ({ name: `Jo
 function loadGame() { try { const g = JSON.parse(localStorage.getItem('partie')); if (g && g.players) return g; } catch {} return { players: newPlayers(4) }; }
 function saveGame() { try { localStorage.setItem('partie', JSON.stringify(gameState)); } catch {} }
 $('#nbPlayers').value = String(gameState.players.length);
-$('#newGame').addEventListener('click', () => { gameState.players = newPlayers(+$('#nbPlayers').value); saveGame(); renderGame(); });
+$('#newGame').addEventListener('click', () => { gameState.players = newPlayers(+$('#nbPlayers').value); Object.assign(gameState, { turn: 0, active: 0, gameStart: 0, turnStart: 0 }); saveGame(); renderGame(); });
+
+// Tour en cours, minuteurs, dés et pièce.
+const fmtTime = (ms) => { const t = Math.max(0, Math.floor(ms / 1000)); const h = Math.floor(t / 3600), m = Math.floor(t / 60) % 60, sec = t % 60; return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(sec).padStart(2, '0'); };
+let lastRoll = '';
+function renderBar() {
+  const g = gameState, P = g.players;
+  const name = P[g.active || 0] ? P[g.active || 0].name : '';
+  $('#gameBar').innerHTML = g.turn
+    ? `<span class="turn">Tour ${g.turn} · <b>${esc(name)}</b></span><span class="muted small">ce tour <span class="timer" id="tTurn">${fmtTime(Date.now() - g.turnStart)}</span> · partie <span class="timer" id="tGame">${fmtTime(Date.now() - g.gameStart)}</span></span><button class="btn sm primary" data-bar="next">Joueur suivant ▸</button>`
+    : `<button class="btn sm primary" data-bar="start">▶ Lancer la partie (tours et minuteur)</button>`;
+  $('#gameBar').innerHTML += `<span class="row" style="gap:6px"><button class="btn sm" data-bar="d6">d6</button><button class="btn sm" data-bar="d20">d20</button><button class="btn sm" data-bar="coin">Pile ou face</button><button class="btn sm" data-bar="first">Qui commence ?</button><span class="roll" aria-live="polite">${esc(lastRoll)}</span></span>`;
+}
+$('#gameBar').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-bar]');
+  if (!b) return;
+  const g = gameState, n = g.players.length, rnd = (k) => 1 + Math.floor(crypto.getRandomValues(new Uint32Array(1))[0] / 2 ** 32 * k);
+  const act = b.dataset.bar;
+  if (act === 'start') Object.assign(g, { turn: 1, active: g.active || 0, gameStart: Date.now(), turnStart: Date.now() });
+  if (act === 'next') {
+    let i = g.active, k = 0;
+    do { i = (i + 1) % n; if (i === g.first) g.turn++; k++; } while (g.players[i].out && k < n);
+    Object.assign(g, { active: i, turnStart: Date.now() });
+  }
+  if (act === 'd6') lastRoll = 'd6 : ' + rnd(6);
+  if (act === 'd20') lastRoll = 'd20 : ' + rnd(20);
+  if (act === 'coin') lastRoll = rnd(2) === 1 ? 'Pile' : 'Face';
+  if (act === 'first') { const i = rnd(n) - 1; lastRoll = g.players[i].name + ' commence'; if (!g.turn) g.active = i; }
+  if (act === 'start' || act === 'first') g.first = g.active;
+  saveGame(); renderGame();
+});
+setInterval(() => {
+  if (!gameState.turn || !$('#tTurn')) return;
+  $('#tTurn').textContent = fmtTime(Date.now() - gameState.turnStart);
+  $('#tGame').textContent = fmtTime(Date.now() - gameState.gameStart);
+}, 1000);
+// Historique des points de vie : un point par tour de jeu (les changements du même tour sont regroupés).
+function logLife(p) {
+  const t = gameState.turn || 0;
+  p.hist ||= [{ t: 0, life: 40 }];
+  const last = p.hist[p.hist.length - 1];
+  if (last.t === t && p.hist.length > 1) last.life = p.life; else p.hist.push({ t, life: p.life });
+  if (p.hist.length > 40) p.hist.splice(1, 1);
+}
+const histHtml = (p) => {
+  if (!p.hist || p.hist.length < 2) return '';
+  return `<div class="hist" title="Points de vie à la fin de chaque tour">${p.hist.slice(-10).map((h, i, a) => { const prev = i ? a[i - 1].life : null; return `<span class="${prev == null ? '' : h.life < prev ? 'down' : h.life > prev ? 'up' : ''}">${h.t ? 'T' + h.t + ' ' : ''}${h.life}</span>`; }).join('')}</div>`;
+};
 $('#nbPlayers').addEventListener('change', () => { const n = +$('#nbPlayers').value; const p = gameState.players; while (p.length < n) p.push(newPlayers(p.length + 1).pop()); p.length = n; saveGame(); renderGame(); });
 function cmdKey(j, k) { return `${j}-${k}`; }
 function renderGame() {
+  renderBar();
   const P = gameState.players;
   $('#players').innerHTML = P.map((p, i) => {
     const maxCmd = Math.max(0, ...Object.values(p.cmd));
@@ -653,10 +824,10 @@ function renderGame() {
     const why = p.life <= 0 ? 'points de vie à 0' : p.poison >= 10 ? '10 marqueurs poison' : maxCmd >= 21 ? '21 blessures d\'un même commandant' : '';
     const sources = [];
     P.forEach((q, j) => { if (j !== i) { sources.push({ j, k: 0, label: q.name + (q.partners ? ' (1)' : '') }); if (q.partners) sources.push({ j, k: 1, label: q.name + ' (2)' }); } });
-    return `<div class="player ${dead ? 'dead' : ''}" data-i="${i}">
+    return `<div class="player ${dead ? 'dead' : ''} ${gameState.turn && gameState.active === i ? 'active' : ''}" data-i="${i}">
       <div class="p-name" contenteditable="true" spellcheck="false" data-i="${i}">${esc(p.name)}</div>
       ${dead ? `<div class="p-dead">Perd la partie : ${why}</div>` : ''}
-      <div class="life"><button class="btn sm" data-act="life" data-d="-5">−5</button><button class="btn sm" data-act="life" data-d="-1">−1</button><span class="life-v">${p.life}</span><button class="btn sm" data-act="life" data-d="1">+1</button><button class="btn sm" data-act="life" data-d="5">+5</button></div>
+      <div class="life"><button class="btn sm" data-act="life" data-d="-5">−5</button><button class="btn sm" data-act="life" data-d="-1">−1</button><span class="life-v">${p.life}</span><button class="btn sm" data-act="life" data-d="1">+1</button><button class="btn sm" data-act="life" data-d="5">+5</button></div>${histHtml(p)}
       <div class="counters">
         <div><span class="muted small">Poison</span><button class="btn sm" data-act="poison" data-d="-1">−</button><b>${p.poison}</b><button class="btn sm" data-act="poison" data-d="1">+</button></div>
         ${[0, ...(p.partners ? [1] : [])].map(k => `<div><span class="muted small">Commandant${p.partners ? ' ' + (k + 1) : ''} lancé ${p.casts[k]}× · prochaine taxe <b>+{${p.casts[k] * 2}}</b></span><button class="btn sm" data-act="cast" data-k="${k}" data-d="-1">−</button><button class="btn sm" data-act="cast" data-k="${k}" data-d="1">Lancé depuis la zone</button></div>`).join('')}
@@ -678,6 +849,7 @@ function renderGame() {
       if (b.dataset.act === 'poison') p.poison = Math.max(0, p.poison + d);
       if (b.dataset.act === 'cast') { const k = +b.dataset.k; p.casts[k] = Math.max(0, p.casts[k] + d); }
       if (b.dataset.act === 'cmd') { const cur = p.cmd[b.dataset.key] || 0; const nv = Math.max(0, cur + d); p.life -= (nv - cur); p.cmd[b.dataset.key] = nv; }
+      if (['life', 'cmd'].includes(b.dataset.act)) logLife(p);
       saveGame(); renderGame();
     });
     $('[data-act="partners"]', el).addEventListener('change', (e) => { p.partners = e.target.checked; saveGame(); renderGame(); });

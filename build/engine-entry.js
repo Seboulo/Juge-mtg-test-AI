@@ -3,7 +3,7 @@
 const { Database } = require('./src/data');
 const { createSearch } = require('./src/search');
 const { checkDeck, canBeCommander } = require('./src/deck');
-const { analyzeDeck } = require('./src/analyze');
+const { analyzeDeck, setRoleTags } = require('./src/analyze');
 const FAQ = require('./faq/faq-fr.json');
 const aiOnline = require('./src/ai-online');
 
@@ -91,6 +91,8 @@ const claudeIntro = `Tu disposes d'outils pour consulter la base du site : fiche
 
 const TRANSLATE_SYSTEM = "Tu traduis en français des textes de règles de Magic: The Gathering. Emploie la terminologie officielle des cartes françaises (champ de bataille, zone de commandement, jeton, arpenteur, blessures, se déclencher, contrecarrer, exiler…). Garde tels quels les symboles entre accolades comme {T} ou {2}{W} et les numéros de règles. Réponds uniquement par la traduction.";
 
+const DECK_SYSTEM = "Tu es un joueur expérimenté de Magic: The Gathering en format Commander. On te donne l'analyse automatique d'un deck (rôles, courbe, combos, bracket estimé, suggestions d'ajouts et de retraits tirées d'EDHREC). Explique en français, simplement et en restant concret : le plan de jeu du deck, ses 2 ou 3 points faibles principaux, puis 5 échanges précis « retirer X → ajouter Y » choisis parmi les suggestions, avec une phrase de justification chacun. Si une suggestion automatique te semble mauvaise pour ce commandant, dis-le. Utilise les noms anglais des cartes entre [[doubles crochets]]. Pas de tableau.";
+
 // Recherche d'une carte par son nom français sur Scryfall (internet nécessaire), sans en-têtes particuliers pour rester compatible avec le navigateur.
 async function lookupFrench(name) {
   const res = await fetch('https://api.scryfall.com/cards/search?q=' + encodeURIComponent(name + ' lang:fr') + '&include_multilingual=true&unique=cards');
@@ -105,9 +107,44 @@ async function lookupFrench(name) {
   return out;
 }
 
+// Données de l'analyseur, chargées seulement au premier usage : rôles (Scryfall Tagger) et combos (Commander Spellbook).
+let rolesP, combosP;
+const loadRoles = () => rolesP ||= fetchJson('roles').then(r => { setRoleTags(db, r); return true; }).catch(() => false);
+const loadCombos = () => combosP ||= fetchJson('combos').catch(() => null);
+
+// Page EDHREC du commandant (ou du duo de partenaires), lue directement depuis le navigateur.
+const slug = (n) => n.split(' // ')[0].normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9 -]/g, '').trim().replace(/[\s-]+/g, '-');
+const edhrecCache = new Map();
+async function edhrecPage(s) {
+  const res = await fetch(`https://json.edhrec.com/pages/commanders/${s}.json`, { signal: AbortSignal.timeout(8000) });
+  if (!res.ok) return null;
+  const j = await res.json();
+  const d = j.container && j.container.json_dict;
+  if (!d || !d.cardlists) return null;
+  const cards = new Map();
+  for (const l of d.cardlists) for (const v of l.cardviews || []) {
+    const c = db.findCardByName(v.name);
+    if (!c || cards.has(c.id) || !v.potential_decks) continue;
+    cards.set(c.id, { id: c.id, list: l.tag, inclusion: v.num_decks / v.potential_decks, synergy: v.synergy || 0 });
+  }
+  return { cards: [...cards.values()], decks: (d.card && d.card.num_decks) || j.num_decks_avg || null, url: `https://edhrec.com/commanders/${s}` };
+}
+async function edhrecFor(names) {
+  if (!names.length) return null;
+  const tries = names.length > 1 ? [names.map(slug).sort().join('-'), slug(names[0])] : [slug(names[0])];
+  for (const s of tries) {
+    if (!edhrecCache.has(s)) edhrecCache.set(s, edhrecPage(s).catch(() => null));
+    const r = await edhrecCache.get(s);
+    if (r && r.cards.length) return r;
+  }
+  return null;
+}
+
 window.juge = {
   aiPresets: aiOnline.PRESETS,
   aiAsk: (s, q, onChunk, signal, onModel) => aiOnline.ask(s, aiOnline.buildMessages(q, search.consult(db, q)), onChunk, signal, onModel),
+  aiExplainDeck: (s, summary, onChunk, signal, onModel) => aiOnline.ask(s, [{ role: 'system', content: DECK_SYSTEM }, { role: 'user', content: summary }], onChunk, signal, onModel),
+  deckPrompt: (summary) => DECK_SYSTEM + '\n\n' + summary,
   aiTranslate: (s, text) => aiOnline.ask(s, [{ role: 'system', content: TRANSLATE_SYSTEM }, { role: 'user', content: text }], () => {}),
   claudeCopyPrompt: (q) => aiOnline.claudePrompt(q, search.consult(db, q)),
   lookupFrench,
@@ -125,7 +162,11 @@ window.juge = {
   consult: async (q) => search.consult(db, q),
   searchFaq: (q, n = 5) => search.searchFaq(q, n),
   checkDeck: async (text, commanders) => checkDeck(db, text, commanders),
-  analyzeDeck: async (entries) => analyzeDeck(db, entries),
+  analyzeDeck: async (entries) => {
+    const names = entries.filter(e => e.commander).map(e => db.cardsById.get(e.id)).filter(Boolean).map(c => c.name);
+    const [, combos, edhrec] = await Promise.all([loadRoles(), loadCombos(), edhrecFor(names)]);
+    return analyzeDeck(db, entries, { combos, edhrec });
+  },
   commanderCandidates: async (q) => db.searchCards(q, 200).filter(c => { const k = db.cardsById.get(c.id); return k && canBeCommander(k); }).slice(0, 15),
   settingsGet: async () => readSettings(),
   settingsSet: async (s) => { try { localStorage.setItem(settingsKey, JSON.stringify(s)); } catch {} return s; },

@@ -70,11 +70,32 @@ function manaValue(c) {
 }
 
 const roleCache = new Map();
+let tagged = null; // rôles d'après Scryfall Tagger : id de carte → rôles
+
+// roles.json : { ramp: [positions dans db.cards], … }. Les contresorts comptent comme removal.
+function setRoleTags(db, roles) {
+  tagged = new Map();
+  for (const [role, list] of Object.entries(roles || {})) {
+    const key = role === 'counter' ? 'removal' : role;
+    for (const i of list) {
+      const c = db.cards[i];
+      if (!c) continue;
+      if (!tagged.has(c.id)) tagged.set(c.id, new Set());
+      tagged.get(c.id).add(key);
+    }
+  }
+  roleCache.clear();
+}
+
 function rolesOf(c) {
   let r = roleCache.get(c.id);
   if (r) return r;
   r = [];
-  if (!isLand(c)) for (const k of Object.keys(RE)) if (RE[k].some(re => re.test(c.text || ''))) r.push(k);
+  // Étiquettes de la communauté quand la carte en a, sinon lecture du texte Oracle (nouvelles cartes pas encore étiquetées).
+  if (!isLand(c)) {
+    if (tagged && tagged.has(c.id)) r = ROLES.map(x => x.key).filter(k => tagged.get(c.id).has(k));
+    else for (const k of Object.keys(RE)) if (RE[k].some(re => re.test(c.text || ''))) r.push(k);
+  }
   // Une destruction de masse n'est pas aussi un removal ciblé, sauf si la carte fait les deux.
   if (r.includes('wrath') && r.includes('removal') && !/target/i.test(c.text || '')) r.splice(r.indexOf('removal'), 1);
   roleCache.set(c.id, r);
@@ -97,7 +118,48 @@ function detectThemes(commanders, isTribe) {
   return out;
 }
 
-function analyzeDeck(db, entries) {
+// Combos connus (Commander Spellbook) : complets dans le deck, ou à une carte près.
+function findCombos(db, combos, inDeck, identity) {
+  if (!combos) return null;
+  const complete = [], near = new Map();
+  const legal = (c) => c.cmdr === 'legal' && c.ci.every(k => identity.has(k));
+  for (const [idx, prod, req] of combos.variants) {
+    const cards = idx.map(i => db.cards[i]);
+    if (cards.some(c => !c)) continue;
+    const missing = cards.filter(c => !inDeck.has(c.id));
+    const item = { cards: cards.map(c => ({ id: c.id, name: c.name, img: c.img })), produces: prod.map(i => combos.features[i]), requires: (req || []).map(i => combos.templates[i]) };
+    if (!missing.length) complete.push(item);
+    else if (missing.length === 1 && cards.length <= 3 && legal(missing[0]) && !near.has(missing[0].id)) near.set(missing[0].id, { ...item, missing: { id: missing[0].id, name: missing[0].name, img: missing[0].img, gc: !!missing[0].gc } });
+  }
+  // Les combos les plus courts d'abord, sans doublons (même ensemble de cartes).
+  const seen = new Set();
+  const dedupe = (xs) => xs.sort((a, b) => a.cards.length - b.cards.length || a.requires.length - b.requires.length)
+    .filter(x => { const k = x.cards.map(c => c.id).sort().join(); if (seen.has(k)) return false; seen.add(k); return true; });
+  return { complete: dedupe(complete), near: dedupe([...near.values()]).slice(0, 10) };
+}
+
+// Estimation du bracket officiel (1 à 5) d'après ce qu'on peut voir dans la liste : Game Changers, combos à 2 cartes,
+// destruction massive de terrains, tours supplémentaires. Le niveau réel dépend aussi de l'intention du joueur.
+function estimateBracket(list, combos) {
+  const gc = list.filter(e => e.card.gc).map(e => e.card.name);
+  const mld = list.filter(e => /(destroy|exile) all (nonbasic )?lands|each player sacrifices (all|[^.]* )lands|destroy all (artifacts, creatures, and )?lands|lands don't untap/i.test(e.card.text || '')).map(e => e.card.name);
+  const turns = list.filter(e => /takes? an extra turn/i.test(e.card.text || '')).map(e => e.card.name);
+  const two = combos ? combos.complete.filter(x => x.cards.length === 2) : [];
+  const reasons = [];
+  if (gc.length) reasons.push(`${gc.length} Game Changer${gc.length > 1 ? 's' : ''} : ${gc.join(', ')}`);
+  if (two.length) reasons.push(`${two.length} combo${two.length > 1 ? 's' : ''} à 2 cartes : ${two.slice(0, 3).map(x => x.cards.map(c => c.name).join(' + ')).join(' ; ')}`);
+  if (mld.length) reasons.push(`destruction massive de terrains : ${mld.join(', ')}`);
+  if (turns.length) reasons.push(`tours supplémentaires : ${turns.join(', ')}`);
+  let level, label;
+  if (gc.length > 3 || mld.length) { level = 4; label = 'Optimisé (4) ou plus'; }
+  else if (gc.length || two.length) { level = 3; label = two.length ? 'Amélioré (3), voire 4 si les combos sortent tôt' : 'Amélioré (3)'; }
+  else { level = 2; label = 'Cœur (2) ou Exhibition (1)'; }
+  if (turns.length >= 3 && level < 4) reasons.push('plusieurs tours supplémentaires : à éviter en bracket 2, pas d\'enchaînement en 3');
+  if (!combos) reasons.push('combos non vérifiés (liste Commander Spellbook indisponible)');
+  return { level, label, reasons };
+}
+
+function analyzeDeck(db, entries, extra = {}) {
   const list = entries.map(e => ({ ...e, card: db.cardsById.get(e.id) })).filter(e => e.card);
   const commanders = list.filter(e => e.commander).map(e => e.card);
   const identity = new Set(commanders.flatMap(c => c.ci));
@@ -141,9 +203,17 @@ function analyzeDeck(db, entries) {
   const pipTotal = Object.values(pips).reduce((a, b) => a + b, 0) || 1;
   const colors = [...identity].filter(k => k in pips).map(k => ({ color: k, name: COLOR_NAME[k], pips: pips[k], pipShare: pips[k] / pipTotal, sources: sources[k], low: lands > 0 && pips[k] / pipTotal > 0.15 && sources[k] < Math.max(8, Math.round(lands * pips[k] / pipTotal * 0.75)) }));
 
+  const combos = findCombos(db, extra.combos, inDeck, identity);
+  const bracket = estimateBracket(list, combos);
+  const comboCards = new Set((combos ? combos.complete : []).flatMap(x => x.cards.map(c => c.id)));
+  const ed = extra.edhrec && extra.edhrec.cards.length ? extra.edhrec : null;
+  if (ed) return { ...withEdhrec(db, ed, { list, commanders, identity, inDeck, themes, checks, perCard, comboCards, lands, landTarget }),
+    commanders: commanders.map(c => c.name), identity: [...identity], themes: themes.map(t => t.label),
+    checks, curve, avg: Math.round(avg * 100) / 100, nonland, lands, colors, combos, bracket };
+
   // À retirer : cartes sans rôle ni lien avec le thème, les plus chères et les moins jouées d'abord.
   // Les cartes très jouées (classement EDHREC parmi les 300 premières) ne sont pas proposées au retrait.
-  const cuts = perCard.filter(x => !x.r.length && !x.fit.length && !/\bBasic\b/.test(x.c.type) && !(x.c.er && x.c.er <= 300))
+  const cuts = perCard.filter(x => !x.r.length && !x.fit.length && !comboCards.has(x.c.id) && !/\bBasic\b/.test(x.c.type) && !(x.c.er && x.c.er <= 300))
     .sort((a, b) => (b.mv - a.mv) || ((b.c.er || 1e6) - (a.c.er || 1e6)))
     .slice(0, 10).map(x => ({ id: x.c.id, name: x.c.name, why: `aucun rôle clé ni lien avec le thème${x.mv >= 5 ? `, coûte ${x.mv}` : ''}` }));
   const excess = checks.filter(ch => ch.status === 'high' && ch.key === 'lands');
@@ -160,7 +230,7 @@ function analyzeDeck(db, entries) {
       if (k >= n) break;
       if (taken.has(c.id) || !filter(c)) continue;
       taken.add(c.id); k++;
-      adds.push({ id: c.id, name: c.name, why, group, gc: !!c.gc, fit: themes.filter(t => test(t.fits, c)).map(t => t.label) });
+      adds.push({ id: c.id, name: c.name, img: c.img, why, group, gc: !!c.gc, fit: themes.filter(t => test(t.fits, c)).map(t => t.label) });
     }
   };
   const themeFit = (c) => !themes.length || themes.some(t => test(t.fits, c));
@@ -177,8 +247,41 @@ function analyzeDeck(db, entries) {
 
   return {
     commanders: commanders.map(c => c.name), identity: [...identity], themes: themes.map(t => t.label),
-    checks, curve, avg: Math.round(avg * 100) / 100, nonland, lands, colors, cuts, adds,
+    checks, curve, avg: Math.round(avg * 100) / 100, nonland, lands, colors, cuts, adds, combos, bracket, source: 'rank',
   };
 }
 
-module.exports = { analyzeDeck, manaValue, rolesOf };
+// Suggestions à partir des decks publiés pour ce commandant sur EDHREC :
+// « inclusion » = part des decks du commandant qui jouent la carte, « synergie » = écart avec sa fréquence dans les autres decks des mêmes couleurs.
+function withEdhrec(db, ed, { list, commanders, identity, inDeck, themes, checks, perCard, comboCards, lands, landTarget }) {
+  const pct = (x) => Math.round(x.inclusion * 100);
+  const byId = new Map(ed.cards.map(x => [x.id, x]));
+  const legal = (c) => c && c.cmdr === 'legal' && c.ci.every(k => identity.has(k));
+  const pool = ed.cards.filter(x => !inDeck.has(x.id) && legal(db.cardsById.get(x.id)));
+  const adds = [], taken = new Set();
+  const push = (x, why, group) => { taken.add(x.id); const c = db.cardsById.get(x.id); adds.push({ id: x.id, name: c.name, img: c.img, why, group, gc: !!c.gc, inclusion: pct(x), synergy: Math.round(x.synergy * 100), fit: [] }); };
+  const score = (x) => x.inclusion + Math.max(0, x.synergy) * 0.8;
+  for (const ch of checks.filter(x => x.status === 'low')) {
+    const n = Math.min(6, ch.min - ch.count + 2);
+    const ok = ch.key === 'lands' ? (c) => isLand(c) : (c) => !isLand(c) && rolesOf(c).includes(ch.key);
+    pool.filter(x => !taken.has(x.id) && ok(db.cardsById.get(x.id))).sort((a, b) => score(b) - score(a)).slice(0, n)
+      .forEach(x => push(x, `${ch.label.toLowerCase()} · ${pct(x)} % des decks`, ch.label));
+  }
+  pool.filter(x => !taken.has(x.id) && x.synergy >= 0.2 && x.inclusion >= 0.1).sort((a, b) => b.synergy - a.synergy).slice(0, 8)
+    .forEach(x => push(x, `forte synergie (+${Math.round(x.synergy * 100)} %) · ${pct(x)} % des decks`, 'Synergie avec ton commandant'));
+  pool.filter(x => !taken.has(x.id) && !isLand(db.cardsById.get(x.id))).sort((a, b) => b.inclusion - a.inclusion).slice(0, 10)
+    .forEach(x => push(x, `${pct(x)} % des decks`, 'Les plus jouées avec ton commandant'));
+
+  // À retirer : cartes peu ou pas jouées avec ce commandant, sans rôle clé ni combo.
+  const name = commanders.map(c => c.name.split(' // ')[0]).join(' + ');
+  const cuts = perCard.filter(x => !/\bBasic\b/.test(x.c.type) && !comboCards.has(x.c.id) && !isLand(x.c))
+    .map(x => ({ ...x, e: byId.get(x.c.id) }))
+    .filter(x => !x.e || x.e.inclusion < 0.08)
+    .sort((a, b) => (a.r.length - b.r.length) || ((a.e ? a.e.inclusion : 0) - (b.e ? b.e.inclusion : 0)) || (b.mv - a.mv))
+    .slice(0, 10)
+    .map(x => ({ id: x.c.id, name: x.c.name, why: x.e ? `jouée dans ${pct(x.e)} % des decks ${name}` : `rare dans les decks ${name}` }));
+  if (lands > landTarget + 1) cuts.unshift({ id: null, name: `${lands - landTarget} terrain(s)`, why: `${lands} terrains pour environ ${landTarget} conseillés` });
+  return { cuts, adds, source: 'edhrec', edhrec: { decks: ed.decks, url: ed.url, name } };
+}
+
+module.exports = { analyzeDeck, manaValue, rolesOf, setRoleTags };

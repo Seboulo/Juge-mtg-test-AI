@@ -276,6 +276,42 @@ label.inline select { width: auto; }
 .ai-answer .tag { color: var(--teal); }
 .ai-answer h2 { font-size: 16px; margin: 10px 0 4px; color: var(--gold2); }
 
+/* Images des cartes */
+.card-layout { display: flex; gap: 18px; align-items: flex-start; }
+.card-info { flex: 1; min-width: 0; }
+.card-imgs { flex: 0 0 230px; display: flex; flex-direction: column; gap: 6px; align-items: center; }
+.card-img { width: 230px; max-width: 100%; aspect-ratio: 488 / 680; border-radius: 4.75% / 3.5%; background: var(--bg3); box-shadow: 0 4px 14px #0005; }
+.img-tabs { display: flex; gap: 4px; flex-wrap: wrap; justify-content: center; }
+.img-tab.on { border-color: var(--gold); color: var(--gold2); }
+.hover-card { position: fixed; z-index: 30; width: 244px; aspect-ratio: 488 / 680; border-radius: 12px; pointer-events: none; box-shadow: 0 8px 30px #0008; background: var(--bg3); }
+.modal-box .card-imgs { flex-basis: 200px; }
+@media (max-width: 640px) { .card-layout { flex-direction: column; align-items: stretch; } .card-imgs { flex-basis: auto; } .card-img { width: 200px; } }
+
+.bracket { border: 1px solid var(--line); border-left: 4px solid var(--ok); border-radius: 8px; padding: 10px 14px; margin: 10px 0; background: var(--bg2); }
+.bracket.b3 { border-left-color: var(--warn); } .bracket.b4 { border-left-color: var(--bad); }
+.bracket b { display: block; font-size: 17px; margin-top: 2px; }
+.bracket ul { margin: 6px 0; padding-left: 18px; }
+.ai-deck { margin: 10px 0 4px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.ai-deck .ai-answer { flex-basis: 100%; }
+.combo { padding: 6px 0; border-bottom: 1px dashed var(--line); }
+.near summary { cursor: pointer; color: var(--gold2); margin: 8px 0; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 10px; margin: 4px 0 12px; }
+.tile { display: flex; flex-direction: column; gap: 3px; background: none; border: 0; padding: 0; text-align: left; cursor: pointer; color: var(--text); font: inherit; min-width: 0; }
+.tile img { width: 100%; aspect-ratio: 146 / 204; border-radius: 6px; background: var(--bg3); object-fit: cover; }
+.tile:hover img { outline: 2px solid var(--gold); }
+.tile-n { font-size: 13px; font-weight: 600; line-height: 1.2; }
+.tile-w { font-size: 12px; color: var(--muted); line-height: 1.2; }
+
+.saved-decks { margin-top: 10px; align-items: center; }
+.game-bar { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; background: var(--bg2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; margin: 10px 0; }
+.game-bar .turn { font-family: var(--serif); font-size: 18px; }
+.game-bar .timer { font-variant-numeric: tabular-nums; color: var(--gold2); font-weight: 600; }
+.game-bar .roll { font-weight: 700; color: var(--accent); min-width: 6em; }
+.player.active { outline: 2px solid var(--gold); }
+.hist { display: flex; flex-wrap: wrap; gap: 4px; font-size: 12px; color: var(--muted); margin-top: 4px; }
+.hist span { background: var(--bg3); border-radius: 4px; padding: 0 5px; font-variant-numeric: tabular-nums; }
+.hist .down { color: var(--bad); } .hist .up { color: var(--ok); }
+
 /* Analyse de deck */
 .an-grid { display: flex; flex-direction: column; gap: 4px; margin: 10px 0; }
 .an-row summary { display: grid; grid-template-columns: minmax(0, 13em) minmax(60px, 1fr) 2.5em 4em 4em; gap: 10px; align-items: center; cursor: pointer; padding: 6px 4px; border-radius: 6px; list-style: none; }
@@ -352,7 +388,7 @@ label.inline select { width: auto; }
       <button class="tab" data-tab="apropos"><span>⚙</span><b class="long">Paramètres</b><b class="short">Réglages</b></button>
     </nav>
     <div class="db-status" id="dbStatus">Chargement de la base…</div>
-    <div class="version muted small">Version 2 · analyseur de deck</div>
+    <div class="version muted small">Version 3 · images, EDHREC, combos</div>
   </aside>
 
   <main>
@@ -402,6 +438,8 @@ label.inline select { width: auto; }
         </label>
         <textarea id="deckText" rows="14" placeholder="Commander&#10;1 Atraxa, Praetors' Voice&#10;&#10;Deck&#10;1 Sol Ring&#10;1 Arcane Signet&#10;..."></textarea>
         <div class="row" style="margin-top:10px"><button id="deckCheck" class="btn primary">Vérifier et analyser</button><span class="muted small">Vérifié avec la base de cartes, sans rien envoyer.</span></div>
+        <div class="row saved-decks"><label class="inline">Mes decks <select id="savedDecks"><option value="">—</option></select></label><button id="deckSave" class="btn sm">Enregistrer ce deck</button><button id="deckDelete" class="btn sm" hidden>Supprimer</button><span id="deckSavedNote" class="muted small"></span></div>
+        <p class="muted small">Un lien Moxfield ou Archidekt ne peut pas être lu directement (ces sites bloquent les autres sites) : sur Moxfield, « Export » puis « Copy for MTGA » ; sur Archidekt, « Export » puis copier le texte, et colle ici.</p>
       </div>
       <div id="deckResult" class="card-box wide" hidden></div>
       <div id="deckAnalysis" class="card-box wide" hidden></div>
@@ -414,6 +452,7 @@ label.inline select { width: auto; }
         <button id="newGame" class="btn">Nouvelle partie</button>
         <span class="muted small">Touche un nom pour le modifier. Les compteurs sont gardés sur cet appareil.</span>
       </div>
+      <div id="gameBar" class="game-bar"></div>
       <div id="players" class="players"></div>
     </section>
 

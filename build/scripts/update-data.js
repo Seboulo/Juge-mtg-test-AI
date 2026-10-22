@@ -6,6 +6,7 @@ const os = require('os');
 const path = require('path');
 const zlib = require('zlib');
 const { Database } = require('../src/data');
+const { fetchTags, fetchCombos } = require('./extras');
 
 const OUT = path.join(__dirname, '..', '..', 'site', 'data');
 
@@ -29,7 +30,14 @@ const OUT = path.join(__dirname, '..', '..', 'site', 'data');
   const meta = { ...read('meta.json'), webBuilt: new Date().toISOString() };
   const files = { cards, rulings, rules, 'cartes-fr': pick(read('cartes-fr.json')), 'noms-fr': pick(read('noms-fr.json')), meta };
 
+  // Rôles et combos : facultatifs. En cas d'échec, l'analyseur se contente de ses règles de texte.
+  const indexOf = new Map(cards.map((c, i) => [c.id, i]));
+  try { files.roles = await fetchTags(indexOf); } catch (e) { console.warn('Rôles Scryfall Tagger ignorés : ' + e.message); }
+  try { files.combos = await fetchCombos(indexOf); } catch (e) { console.warn('Combos Commander Spellbook ignorés : ' + e.message); }
+
   fs.mkdirSync(OUT, { recursive: true });
+  // Ces fichiers renvoient aux positions dans cards.json : une ancienne version ne correspondrait plus.
+  for (const n of ['roles', 'combos']) if (!files[n]) fs.rmSync(path.join(OUT, n + '.json.gz'), { force: true });
   for (const [name, data] of Object.entries(files)) {
     const gz = zlib.gzipSync(JSON.stringify(data), { level: 9 });
     fs.writeFileSync(path.join(OUT, name + '.json.gz'), gz);

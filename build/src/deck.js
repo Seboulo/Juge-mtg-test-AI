@@ -142,7 +142,7 @@ function checkDeck(db, text, commanderNames = []) {
   if (gc.length === 0) bracket = 'compatible avec les niveaux 1 à 2 (aucun Game Changer)';
   else if (gc.length <= 3) bracket = 'niveau 3 minimum (1 à 3 Game Changers)';
   else bracket = 'niveau 4 minimum (plus de 3 Game Changers)';
-  infos.push(`Game Changers : ${gc.length}${gc.length ? ' (' + gc.join(', ') + ')' : ''}. Indication de niveau (bracket) : ${bracket}. Les autres critères des niveaux (combos infinies, tours supplémentaires, destruction massive de terrains…) ne sont pas vérifiés automatiquement.`);
+  infos.push(`Game Changers : ${gc.length}${gc.length ? ' (' + gc.join(', ') + ')' : ''}. Indication de niveau (bracket) : ${bracket}. Les combos, tours supplémentaires et destructions de terrains sont pris en compte dans le bracket estimé de l'analyse ci-dessous.`);
 
   const types = { Créatures: 0, Terrains: 0, Artefacts: 0, Enchantements: 0, Éphémères: 0, Rituels: 0, Planeswalkers: 0, Batailles: 0 };
   for (const { card, qty } of cards.values()) {
