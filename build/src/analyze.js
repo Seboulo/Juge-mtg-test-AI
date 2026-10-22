@@ -189,8 +189,14 @@ function analyzeDeck(db, entries, extra = {}) {
     for (const m of ((c.mana || '').split('//')[0]).matchAll(/\{([^}]+)\}/g)) for (const k of 'WUBRG') if (m[1].includes(k)) pips[k] += qty;
     const r = rolesOf(c);
     for (const k of r) if (roles[k]) roles[k].push(c.name);
-    if (!commanders.includes(c)) perCard.push({ c, r, mv, fit: themes.filter(t => test(t.fits, c)).map(t => t.label) });
+    if (!commanders.includes(c)) perCard.push({ c, r, mv });
   }
+  // Thèmes du deck lui-même (pas seulement du commandant) : un thème suivi par au moins 10 cartes compte aussi.
+  for (const t of THEMES) {
+    if (themes.some(x => x.key === t.key)) continue;
+    if (perCard.filter(x => test(t.fits, x.c)).length >= 10) themes.push({ ...t, fromDeck: true });
+  }
+  for (const x of perCard) x.fit = themes.filter(t => test(t.fits, x.c)).map(t => t.label);
   const avg = nonland ? mvSum / nonland : 0;
   const ramp = roles.ramp.length;
   const landTarget = Math.round(Math.max(33, Math.min(39, 31 + avg * 2 - Math.max(0, ramp - 10) * 0.5)));
@@ -274,12 +280,27 @@ function withEdhrec(db, ed, { list, commanders, identity, inDeck, themes, checks
 
   // À retirer : cartes peu ou pas jouées avec ce commandant, sans rôle clé ni combo.
   const name = commanders.map(c => c.name.split(' // ')[0]).join(' + ');
+  // Chaque carte reçoit une note « à garder » : rôle clé, lien avec un thème du deck, popularité avec ce commandant
+  // (EDHREC), popularité générale. Les retraits proposés sont les notes les plus basses ; une carte qui suit un thème
+  // ou a un rôle n'est proposée que si elle n'est presque jamais jouée avec ce commandant.
   const cuts = perCard.filter(x => !/\bBasic\b/.test(x.c.type) && !comboCards.has(x.c.id) && !isLand(x.c))
-    .map(x => ({ ...x, e: byId.get(x.c.id) }))
-    .filter(x => !x.e || x.e.inclusion < 0.08)
-    .sort((a, b) => (a.r.length - b.r.length) || ((a.e ? a.e.inclusion : 0) - (b.e ? b.e.inclusion : 0)) || (b.mv - a.mv))
+    .map(x => {
+      const e = byId.get(x.c.id);
+      const keep = (x.r.length ? 1.5 : 0) + x.fit.length * 1.2 + (e ? e.inclusion * 6 + Math.max(0, e.synergy) * 4 : 0)
+        + (x.c.er ? Math.max(0, 1.5 - Math.log10(x.c.er) / 2.5) : 0) - Math.max(0, x.mv - 4) * 0.25;
+      return { ...x, e, keep };
+    })
+    .filter(x => !x.e || x.e.inclusion < 0.1)
+    .filter(x => !(x.fit.length || x.r.length) || (x.e ? x.e.inclusion < 0.03 : x.keep < 2))
+    .sort((a, b) => a.keep - b.keep)
     .slice(0, 10)
-    .map(x => ({ id: x.c.id, name: x.c.name, why: x.e ? `jouée dans ${pct(x.e)} % des decks ${name}` : `rare dans les decks ${name}` }));
+    .map(x => {
+      const parts = [x.e ? `jouée dans ${pct(x.e)} % des decks ${name}` : `presque jamais jouée avec ${name}`];
+      if (x.fit.length) parts.push(`suit le thème ${x.fit.join(', ')}`);
+      else if (!x.r.length) parts.push('aucun rôle clé ni lien avec les thèmes du deck');
+      if (x.mv >= 5) parts.push(`coûte ${x.mv}`);
+      return { id: x.c.id, name: x.c.name, why: parts.join(' · ') };
+    });
   if (lands > landTarget + 1) cuts.unshift({ id: null, name: `${lands - landTarget} terrain(s)`, why: `${lands} terrains pour environ ${landTarget} conseillés` });
   return { cuts, adds, source: 'edhrec', edhrec: { decks: ed.decks, url: ed.url, name } };
 }
