@@ -275,6 +275,33 @@ label.inline select { width: auto; }
 .ai-answer .tag { color: var(--teal); }
 .ai-answer h2 { font-size: 16px; margin: 10px 0 4px; color: var(--gold2); }
 
+/* Analyse de deck */
+.an-grid { display: flex; flex-direction: column; gap: 4px; margin: 10px 0; }
+.an-row summary { display: grid; grid-template-columns: minmax(0, 13em) minmax(60px, 1fr) 2.5em 4em 4em; gap: 10px; align-items: center; cursor: pointer; padding: 6px 4px; border-radius: 6px; list-style: none; }
+.an-row summary::-webkit-details-marker { display: none; }
+.an-row summary:hover { background: var(--bg3); }
+.an-row p { margin: 2px 4px 8px; }
+.an-bar { position: relative; height: 8px; background: var(--bg3); border-radius: 4px; }
+.an-bar span { position: absolute; inset: 0 auto 0 0; border-radius: 4px; background: var(--ok); }
+.an-bar i { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--muted); }
+.an-row.low .an-bar span { background: var(--bad); }
+.an-row.high .an-bar span, .an-row.info .an-bar span { background: var(--warn); }
+.an-row b { text-align: right; }
+.an-target { color: var(--muted); font-size: 13px; }
+.an-st { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--ok); }
+.an-row.low .an-st { color: var(--bad); } .an-row.high .an-st, .an-row.info .an-st { color: var(--warn); }
+.curve { display: flex; gap: 6px; align-items: flex-end; height: 120px; max-width: 420px; padding-top: 16px; }
+.cv { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 2px; }
+.cv-bar { width: 100%; background: var(--gold); border-radius: 4px 4px 0 0; min-height: 2px; }
+.cv-n { font-size: 12px; color: var(--muted); }
+.cv-l { font-size: 12px; font-weight: 600; }
+.colors { display: flex; flex-direction: column; gap: 6px; }
+.warn-t { color: var(--warn); }
+.add-group { margin-bottom: 10px; }
+.pill.static { cursor: default; }
+.gc-dot { font-size: 10px; font-weight: 700; color: var(--warn); border: 1px solid var(--warn); border-radius: 4px; padding: 0 3px; }
+@media (max-width: 560px) { .an-row summary { grid-template-columns: minmax(0, 1fr) 2.5em 4em; } .an-bar, .an-target { display: none; } }
+
 /* ---------- Téléphone ---------- */
 @media (max-width: 860px) {
   .app { display: block; }
@@ -365,7 +392,7 @@ label.inline select { width: auto; }
     <!-- DECK -->
     <section id="tab-deck" class="panel">
       <div class="card-box wide">
-        <h2>Vérifier un deck Commander</h2>
+        <h2>Vérifier et analyser un deck</h2>
         <p class="muted small">Colle ta liste (format Moxfield, Archidekt, MTG Arena… : « 1 Sol Ring » par ligne). Le commandant peut être indiqué dans une section « Commander » ou choisi ci-dessous.</p>
         <label>Commandant(s)
           <div class="row"><input id="cmd1" type="text" list="cmdList" placeholder="Commandant"><input id="cmd2" type="text" list="cmdList" placeholder="Second commandant (partenaire, optionnel)"></div>
@@ -375,6 +402,7 @@ label.inline select { width: auto; }
         <div class="row" style="margin-top:10px"><button id="deckCheck" class="btn primary">Vérifier</button><span class="muted small">Vérifié avec la base de cartes, sans rien envoyer.</span></div>
       </div>
       <div id="deckResult" class="card-box wide" hidden></div>
+      <div id="deckAnalysis" class="card-box wide" hidden></div>
     </section>
 
     <!-- PARTIE -->

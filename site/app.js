@@ -290,14 +290,39 @@ function trBlock(inner, label = '') {
 }
 const trCache = (() => { try { return JSON.parse(localStorage.getItem('juge-traductions')) || {}; } catch { return {}; } })();
 const saveTr = () => { try { localStorage.setItem('juge-traductions', JSON.stringify(trCache)); } catch {} };
-async function translate(text) {
-  if (trCache[text]) return { text: trCache[text] };
-  if (!aiReady()) return { link: 'https://translate.google.com/?sl=en&tl=fr&op=translate&text=' + encodeURIComponent(text) };
+// Traduction affichée dans la page : l'IA si une clé est enregistrée, sinon le traducteur intégré au navigateur
+// (Chrome, Edge), sinon Google Traduction. Les traductions sont gardées sur l'appareil.
+const gLink = (text) => 'https://translate.google.com/?sl=en&tl=fr&op=translate&text=' + encodeURIComponent(text);
+let browserTr = null;
+async function translateBrowser(text) {
+  if (!('Translator' in self)) return null;
   try {
-    const t = (await juge.aiTranslate(state.settings, text)).trim();
-    if (t) { trCache[text] = t; saveTr(); }
-    return { text: t };
-  } catch (e) { return { error: e.message, link: 'https://translate.google.com/?sl=en&tl=fr&op=translate&text=' + encodeURIComponent(text) }; }
+    // Seulement si le modèle est déjà sur l'appareil : sinon son téléchargement peut prendre plusieurs minutes.
+    const avail = await Promise.race([Translator.availability({ sourceLanguage: 'en', targetLanguage: 'fr' }), new Promise(r => setTimeout(() => r('timeout'), 1500))]);
+    if (avail !== 'available') return null;
+    browserTr = browserTr || await Translator.create({ sourceLanguage: 'en', targetLanguage: 'fr' });
+    return await browserTr.translate(text);
+  } catch { return null; }
+}
+async function translateGoogle(text) {
+  const res = await fetch('https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=fr&dt=t&q=' + encodeURIComponent(text));
+  if (!res.ok) throw new Error('Google Traduction a répondu ' + res.status);
+  return (await res.json())[0].map(x => x[0]).join('');
+}
+// Quelques termes de Magic que la traduction automatique rend mal.
+const mtgFr = (t) => t.replace(/\bcontrer\b/g, 'contrecarrer').replace(/\bcontré(e?s?)\b/g, 'contrecarré$1').replace(/\bjetons? de trésor\b/gi, (m) => m.replace(/trésor/i, 'Trésor'));
+async function translate(text) {
+  if (trCache[text]) return { text: trCache[text].t || trCache[text], by: trCache[text].by || '' };
+  let t = '', by = '';
+  try {
+    if (aiReady()) { t = (await juge.aiTranslate(state.settings, text)).trim(); by = 'l\'IA'; }
+  } catch { /* on essaie la suite */ }
+  if (!t) { t = await translateBrowser(text); if (t) by = 'le traducteur du navigateur'; }
+  if (!t) { try { t = await translateGoogle(text); by = 'Google Traduction'; } catch { /* hors ligne */ } }
+  if (!t) return { error: 'Traduction impossible pour le moment (connexion internet ?).', link: gLink(text) };
+  t = mtgFr(t);
+  trCache[text] = { t, by }; saveTr();
+  return { text: t, by };
 }
 document.addEventListener('click', async (e) => {
   const b = e.target.closest('.tr-btn');
@@ -310,11 +335,11 @@ document.addEventListener('click', async (e) => {
   const r = await translate(text);
   b.disabled = false;
   if (r.text) {
-    out.innerHTML = `<div class="tr-fr">${manaHtml(r.text)}</div><div class="muted small">Traduction automatique par l'IA : en cas de doute, le texte anglais fait foi.</div>`;
+    out.innerHTML = `<div class="tr-fr">${manaHtml(r.text)}</div><div class="muted small">Traduction automatique${r.by ? ' par ' + esc(r.by) : ''} : en cas de doute, le texte anglais fait foi.</div>`;
     b.textContent = '🌐 Masquer';
   } else {
     b.textContent = '🌐 Traduire';
-    out.innerHTML = r.link ? `<a href="${esc(r.link)}" target="_blank" rel="noopener">Ouvrir dans Google Traduction ↗</a>` : `<div class="error small">${esc(r.error)}</div>`;
+    out.innerHTML = `<div class="error small">${esc(r.error)}</div>` + (r.link ? ` <a class="small" href="${esc(r.link)}" target="_blank" rel="noopener">Ouvrir dans Google Traduction ↗</a>` : '');
   }
 });
 
@@ -578,7 +603,7 @@ $('#deckCheck').addEventListener('click', async () => {
   try { localStorage.setItem('deckText', $('#deckText').value); localStorage.setItem('cmd1', $('#cmd1').value); localStorage.setItem('cmd2', $('#cmd2').value); } catch {}
   const r = await juge.checkDeck($('#deckText').value, [$('#cmd1').value.trim(), $('#cmd2').value.trim()]);
   const box = $('#deckResult');
-  box.classList.remove('hidden');
+  box.hidden = false;
   box.innerHTML = `<h2>${r.ok ? '<span class="ok-t">✓ Deck légal</span>' : `<span class="bad-t">✗ ${r.errors.length} problème${r.errors.length > 1 ? 's' : ''}</span>`}</h2>
     <p>${r.commanders.length ? `Commandant${r.commanders.length > 1 ? 's' : ''} : <b>${r.commanders.map(esc).join(' + ')}</b> · ` : ''}Identité couleur : <b>${esc(r.identity)}</b> · ${r.total} cartes (${r.count} différentes)</p>
     ${r.errors.map(x => `<div class="step answer no"><p>${inline(esc(x))}</p></div>`).join('')}
@@ -586,7 +611,30 @@ $('#deckCheck').addEventListener('click', async () => {
     ${r.infos.map(x => `<div class="step answer ok"><p>${inline(esc(x))}</p></div>`).join('')}
     <h4>Répartition</h4><div class="pill-row">${Object.entries(r.types).filter(([, n]) => n).map(([k, n]) => `<span class="badge">${k} : ${n}</span>`).join('')}</div>`;
   verifyRuleRefs(box);
+  const an = $('#deckAnalysis');
+  if (!r.commanders.length || r.total < 40) { an.hidden = true; return; }
+  an.hidden = false;
+  an.innerHTML = analysisHtml(await juge.analyzeDeck(r.entries));
 });
+
+// ---------- Analyse du deck : rôles, courbe, couleurs, retraits et ajouts ----------
+const STATUS = { ok: ['ok', '✓'], low: ['low', 'manque'], high: ['high', 'trop'], info: ['info', 'peu'] };
+const COLOR_CSS = { W: 'W', U: 'U', B: 'B', R: 'R', G: 'G' };
+function analysisHtml(a) {
+  const maxCurve = Math.max(1, ...a.curve);
+  const card = (x) => x.id ? `<button class="pill" data-card="${esc(x.id)}">${esc(x.name)}${x.gc ? ' <span class="gc-dot" title="Game Changer">GC</span>' : ''}</button>` : `<span class="pill static">${esc(x.name)}</span>`;
+  const groups = {};
+  for (const x of a.adds) (groups[x.group] ||= []).push(x);
+  return `<h2>Analyse du deck</h2>
+    <p class="muted small">Thème${a.themes.length > 1 ? 's' : ''} repéré${a.themes.length > 1 ? 's' : ''} dans le texte du commandant : ${a.themes.length ? a.themes.map(t => `<b>${esc(t)}</b>`).join(', ') : '<i>aucun thème net</i>'}. Les repères sont ceux des guides de construction Commander : ce sont des indications, pas des règles.</p>
+    <div class="an-grid">${a.checks.map(c => `<details class="an-row ${STATUS[c.status][0]}"><summary><span class="an-label">${esc(c.label)}</span><span class="an-bar"><span style="width:${Math.min(100, c.count / Math.max(c.max, 1) * 100)}%"></span><i style="left:${c.min / Math.max(c.max, 1) * 100}%"></i></span><b>${c.count}</b><span class="an-target">${c.min}–${c.max}</span><span class="an-st">${STATUS[c.status][1]}</span></summary><p class="muted small">${esc(c.tip)}.${c.cards.length ? ' ' + c.cards.map(esc).join(', ') + '.' : ''}</p></details>`).join('')}</div>
+    <h4>Courbe de mana <span class="muted small">· valeur moyenne ${a.avg} (hors terrains)</span></h4>
+    <div class="curve">${a.curve.map((n, i) => `<div class="cv"><span class="cv-n">${n || ''}</span><span class="cv-bar" style="height:${n / maxCurve * 100}%"></span><span class="cv-l">${i === 7 ? '7+' : i}</span></div>`).join('')}</div>
+    ${a.colors.length > 1 ? `<h4>Couleurs</h4><div class="colors">${a.colors.map(c => `<div class="col-row"><span class="mana ${COLOR_CSS[c.color]}">${c.color}</span> ${Math.round(c.pipShare * 100)} % des symboles de mana · <b>${c.sources}</b> terrains qui produisent du ${esc(c.name)}${c.low ? ' <span class="warn-t">· un peu juste</span>' : ''}</div>`).join('')}</div>` : ''}
+    ${a.cuts.length ? `<h4>À retirer en priorité</h4><p class="muted small">Cartes sans rôle clé (rampe, pioche, removal…) et sans lien avec le thème du commandant. À toi de juger : une carte peut avoir une bonne raison d'être là.</p><div class="pill-row">${a.cuts.map(card).join('')}</div>` : ''}
+    ${a.adds.length ? `<h4>À ajouter</h4><p class="muted small">Cartes très jouées en Commander (classement EDHREC) dans tes couleurs. <span class="gc-dot">GC</span> = Game Changer : elle fait monter le niveau (bracket) du deck.</p>${Object.entries(groups).map(([g, xs]) => `<div class="add-group"><div class="tr-label">${esc(g)}</div><div class="pill-row">${xs.map(card).join('')}</div></div>`).join('')}` : ''}
+    <p class="muted small">Touche une carte pour voir son texte. Analyse automatique à partir du texte Oracle : elle peut se tromper sur une carte inhabituelle.</p>`;
+}
 
 // ---------- Suivi de partie ----------
 const gameState = loadGame();

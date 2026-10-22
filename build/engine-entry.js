@@ -3,6 +3,7 @@
 const { Database } = require('./src/data');
 const { createSearch } = require('./src/search');
 const { checkDeck, canBeCommander } = require('./src/deck');
+const { analyzeDeck } = require('./src/analyze');
 const FAQ = require('./faq/faq-fr.json');
 const aiOnline = require('./src/ai-online');
 
@@ -124,6 +125,7 @@ window.juge = {
   consult: async (q) => search.consult(db, q),
   searchFaq: (q, n = 5) => search.searchFaq(q, n),
   checkDeck: async (text, commanders) => checkDeck(db, text, commanders),
+  analyzeDeck: async (entries) => analyzeDeck(db, entries),
   commanderCandidates: async (q) => db.searchCards(q, 200).filter(c => { const k = db.cardsById.get(c.id); return k && canBeCommander(k); }).slice(0, 15),
   settingsGet: async () => readSettings(),
   settingsSet: async (s) => { try { localStorage.setItem(settingsKey, JSON.stringify(s)); } catch {} return s; },

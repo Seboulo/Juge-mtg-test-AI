@@ -163,6 +163,7 @@ function checkDeck(db, text, commanderNames = []) {
     commanders: commanders.map(c => c.name),
     errors, warnings, infos, types,
     count: cards.size,
+    entries: [...cards.values()].map(x => ({ id: x.card.id, qty: x.qty, commander: x.commander })),
   };
 }
 
