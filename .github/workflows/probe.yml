@@ -7,56 +7,24 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
-      - name: Scryfall
+      - name: Tags Scryfall
         run: |
-          O='Origin: https://seboulo.github.io'
-          curl -s -D - -o /tmp/s.json -H "$O" -H 'User-Agent: JugeMTG/1.0' 'https://api.scryfall.com/cards/search?q=otag%3Aramp+f%3Acommander&unique=cards' | grep -i -E '^(HTTP|access-control)'
-          python3 -c "import json;d=json.load(open('/tmp/s.json'));print('otag:ramp total',d.get('total_cards'),d.get('has_more'),[c['name'] for c in d['data'][:5]])"
-          curl -s -D - -o /tmp/n.json -H "$O" 'https://api.scryfall.com/cards/named?exact=Sol%20Ring' | grep -i -E '^(HTTP|access-control)'
-          python3 -c "import json;d=json.load(open('/tmp/n.json'));print(d.get('image_uris'))"
-          curl -s -I -H "$O" 'https://api.scryfall.com/cards/named?exact=Sol%20Ring&format=image&version=normal' | grep -i -E '^(HTTP|location)'
-          curl -s -D - -o /dev/null -H "$O" 'https://cards.scryfall.io/normal/front/f/b/fbdf5f7b-8f4c-4b7e-9de9-9e5e5b8b5b7b.jpg' | grep -i -E '^(HTTP|access-control)'
-      - name: EDHREC
+          for t in ramp mana-rock mana-dork card-advantage draw removal creature-removal spot-removal board-wipe sweeper tutor recursion reanimation protection gives-hexproof gives-indestructible counterspell sacrifice-outlet; do
+            n=$(curl -s -H 'User-Agent: JugeMTG/1.0' "https://api.scryfall.com/cards/search?q=otag%3A$t+f%3Acommander&unique=cards" | python3 -c "import json,sys;d=json.load(sys.stdin);print(d.get('total_cards',d.get('details','?')))")
+            echo "otag:$t => $n"; sleep 0.15
+          done
+      - name: Commander Spellbook bulk
         run: |
-          O='Origin: https://seboulo.github.io'
-          curl -s -D - -o /tmp/e.json -H "$O" 'https://json.edhrec.com/pages/commanders/edgar-markov.json' | grep -i -E '^(HTTP|access-control|content-type)'
-          python3 - <<'PY'
-          import json
-          d=json.load(open('/tmp/e.json'))
-          print('top keys', list(d.keys())[:30])
-          cl=d.get('container',{}).get('json_dict',{}).get('cardlists',[])
-          print('cardlists', [(c.get('header'), c.get('tag'), len(c.get('cardviews',[]))) for c in cl])
-          if cl: print('sample', json.dumps(cl[0]['cardviews'][0])[:600])
-          print('num_decks', d.get('num_decks_avg'), d.get('container',{}).get('json_dict',{}).get('card',{}).get('num_decks'))
-          PY
-          curl -s -D - -o /tmp/r.json -H "$O" -H 'Content-Type: application/json' -X POST 'https://edhrec.com/api/recs/' --data '{"commanders":["Edgar Markov"],"cards":["Sol Ring","Blood Artist"]}' | grep -i -E '^(HTTP|access-control|content-type)'
-          head -c 600 /tmp/r.json; echo
-      - name: Commander Spellbook
+          for u in https://json.commanderspellbook.com/variants.json https://json.commanderspellbook.com/variants.json.gz https://backend.commanderspellbook.com/variants/?limit=1 ; do
+            echo "== $u"; curl -s -I -H 'Origin: https://seboulo.github.io' "$u" | grep -i -E '^(HTTP|content-length|content-type|access-control|location)'
+          done
+          curl -s 'https://backend.commanderspellbook.com/variants/?limit=1' | head -c 1500; echo
+          curl -s -o /tmp/v.json 'https://json.commanderspellbook.com/variants.json' && ls -la /tmp/v.json && python3 -c "
+          import json;d=json.load(open('/tmp/v.json'));print(type(d), list(d.keys())[:10] if isinstance(d,dict) else len(d))
+          v=d['variants'] if isinstance(d,dict) and 'variants' in d else d
+          print(len(v)); print(json.dumps(v[0])[:2500])"
+      - name: EDHREC slug of partner and average deck
         run: |
-          O='Origin: https://seboulo.github.io'
-          curl -s -D - -o /tmp/c.json -H "$O" -H 'Content-Type: application/json' -X POST 'https://backend.commanderspellbook.com/find-my-combos' --data '{"commanders":[{"card":"Teysa Karlov"}],"main":[{"card":"Blood Artist"},{"card":"Viscera Seer"},{"card":"Reassembling Skeleton"},{"card":"Ashnod'"'"'s Altar"},{"card":"Nim Deathmantle"},{"card":"Sol Ring"}]}' | grep -i -E '^(HTTP|access-control|content-type)'
-          python3 - <<'PY'
-          import json
-          d=json.load(open('/tmp/c.json'))
-          print('keys', list(d.keys()))
-          r=d.get('results',d)
-          print('result keys', list(r.keys()) if isinstance(r,dict) else type(r))
-          for k,v in (r.items() if isinstance(r,dict) else []):
-            if isinstance(v,list): print(k, len(v))
-          inc=r.get('included',[]) if isinstance(r,dict) else []
-          if inc: print('included sample', json.dumps(inc[0])[:1500])
-          alm=r.get('almostIncluded',[]) if isinstance(r,dict) else []
-          if alm: print('almost sample uses', [u['card']['name'] for u in alm[0].get('uses',[])], alm[0].get('produces',[])[:2])
-          PY
-          curl -s -X OPTIONS -D - -o /dev/null -H "$O" -H 'Access-Control-Request-Method: POST' -H 'Access-Control-Request-Headers: content-type' 'https://backend.commanderspellbook.com/find-my-combos' | grep -i -E '^(HTTP|access-control)'
-      - name: Archidekt and Moxfield
-        run: |
-          O='Origin: https://seboulo.github.io'
-          curl -s -D - -o /tmp/a.json -H "$O" 'https://archidekt.com/api/decks/v3/?name=edgar&pageSize=1' | grep -i -E '^(HTTP|access-control)'
-          head -c 400 /tmp/a.json; echo
-          ID=$(python3 -c "import json;d=json.load(open('/tmp/a.json'));print(d['results'][0]['id'])" 2>/dev/null || echo 1)
-          echo "deck $ID"
-          curl -s -D - -o /tmp/ad.json -H "$O" "https://archidekt.com/api/decks/$ID/" | grep -i -E '^(HTTP|access-control)'
-          python3 -c "import json;d=json.load(open('/tmp/ad.json'));print(list(d.keys()));c=d['cards'][0];print(json.dumps(c)[:800])" || head -c 300 /tmp/ad.json
-          curl -s -D - -o /tmp/m.json -H "$O" 'https://api2.moxfield.com/v3/search?pageNumber=1&pageSize=1&sortType=views&fmt=commander' | grep -i -E '^(HTTP|access-control)'
-          head -c 300 /tmp/m.json; echo
+          curl -s -o /dev/null -w '%{http_code}\n' 'https://json.edhrec.com/pages/commanders/teysa-karlov.json'
+          curl -s -o /dev/null -w '%{http_code}\n' 'https://json.edhrec.com/pages/commanders/atraxa-praetors-voice.json'
+          curl -s -o /dev/null -w '%{http_code}\n' 'https://json.edhrec.com/pages/commanders/grist-the-hunger-tide.json'

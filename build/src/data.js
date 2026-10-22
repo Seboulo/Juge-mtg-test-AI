@@ -227,7 +227,7 @@ class Database {
         if (!n) continue;
         const t = c.printed_text != null ? c.printed_text : faces.map(f => f.printed_text || '').filter(Boolean).join('\n—\n');
         const ty = c.printed_type_line || faces.map(f => f.printed_type_line).filter(Boolean).join(' // ');
-        fr[id] = { n, ty: ty || undefined, t: t || undefined, set: c.set_name };
+        fr[id] = { n, ty: ty || undefined, t: t || undefined, set: c.set_name, img: imagePath(c.image_uris || (faces[0] && faces[0].image_uris)) };
       }
       progress(`Textes français des cartes… ${Object.keys(fr).length}${total ? ' / ' + total : ''}`, 92 + Math.min(7, page / 30));
       url = data.has_more ? data.next_page : null;
@@ -269,7 +269,7 @@ class Database {
     if (!c) return null;
     const rulings = (this.rulings[id] || []).map(r => ({ ...r, fr: this.tr.rulings[r.t] || null }));
     const f = this.frCards[id] || null;
-    return { ...c, rulings, nameFr: this.frNames[id] || null, textFr: f && f.t || null, typeFr: f && f.ty || null };
+    return { ...c, rulings, nameFr: this.frNames[id] || null, textFr: f && f.t || null, typeFr: f && f.ty || null, imgFr: f && f.img || null };
   }
 
   findCardByName(name) {
@@ -295,7 +295,7 @@ class Database {
 
   cardSummary(c) {
     const f = this.frCards[c.id];
-    return { id: c.id, name: c.name, nameFr: this.frNames[c.id] || null, mana: c.mana, type: c.type, typeFr: f && f.ty || null, cmdr: c.cmdr };
+    return { id: c.id, name: c.name, nameFr: this.frNames[c.id] || null, mana: c.mana, type: c.type, typeFr: f && f.ty || null, cmdr: c.cmdr, img: c.img || null };
   }
 
   // Recherche une carte par son nom français via Scryfall (nécessite internet), puis la mémorise.
@@ -408,7 +408,15 @@ function trimCard(c) {
     keywords: c.keywords && c.keywords.length ? c.keywords : undefined,
     gc: c.game_changer || undefined,
     er: c.edhrec_rank || undefined,
+    img: imagePath(c.image_uris || (faces[0] && faces[0].image_uris)),
+    img2: c.image_uris ? undefined : imagePath(faces[1] && faces[1].image_uris),
   };
+}
+
+// Chemin de l'image sur cards.scryfall.io (« front/f/b/….jpg ») : l'adresse complète se reconstruit selon la taille voulue.
+function imagePath(uris) {
+  const m = uris && uris.normal && uris.normal.match(/scryfall\.io\/normal\/([^?]+)/);
+  return m ? m[1] : undefined;
 }
 
 // Trouve l'adresse du fichier dans une entrée « bulk data » de Scryfall, quel que soit le nom du champ.
