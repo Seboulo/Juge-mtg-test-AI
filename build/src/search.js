@@ -63,7 +63,22 @@ function createSearch(faqFile) {
         related: cardNames.some(n => x.f.plainAll.includes(' ' + plain(n) + ' ')) || groups.some(g => g.extra && g.members.some(m => x.f.tok.has(m))) }));
   }
 
-  function consult(db, question) {
+  // Recherche par le sens (facultative) : `sims[i]` = proximité entre la question et la fiche i,
+  // calculée par le modèle e5 dans le navigateur. Elle ne remplace pas les mots-clés : elle reprend la main
+  // seulement quand ceux-ci sont faibles et qu'une fiche est nettement plus proche par le sens.
+  // Seuils réglés sur les 5 bancs d'essai (build/test) : paraphrases 38 → 43/50 en tête, sans perte ailleurs sauf 1.
+  function semPick(hits, confident, sims) {
+    const order = sims.map((v, i) => [i, v]).sort((a, b) => b[1] - a[1]);
+    const [top, second] = order;
+    const h = hits[0];
+    if (confident && h.score >= 60) return { hits, confident };
+    if (top[1] < 0.86 || (h && top[1] - (sims[h.id] ?? 0) < 0.01)) return { hits, confident };
+    const prev = hits.find(x => x.id === top[0]);
+    const pick = { ...(prev || { ...pubFaq(faq[top[0]]), score: 0 }), sem: true };
+    return { hits: [pick, ...hits.filter(x => x.id !== top[0])].slice(0, 5), confident: top[1] - second[1] >= 0.01 };
+  }
+
+  function consult(db, question, sims) {
     const det = db.detectCards(question);
     const cards = det.cards;
     // Noms tels qu'écrits → nom anglais exact, gardé seulement si une fiche FAQ cite cette carte
@@ -95,7 +110,14 @@ function createSearch(faqFile) {
     const h = hits[0];
     // Une fiche qui cite toutes les cartes de la question (ou au moins deux) est aussi une bonne piste.
     const enough = h && (h.cardFiche || h.strong >= 2 || (cards.length && h.cardHits >= Math.min(2, cards.length)) || (h.strong >= 1 && h.strong * 2 >= h.precise && (!cards.length || h.related)));
-    const confident = enough && (h.score >= 45 || (h.score >= 30 && h.score >= 1.4 * ((hits[1] && hits[1].score) || 0)));
+    let confident = enough && (h.score >= 45 || (h.score >= 30 && h.score >= 1.4 * ((hits[1] && hits[1].score) || 0)));
+    let sem = false;
+    if (sims && sims.length === faq.length) {
+      const r = semPick(hits, !!confident, sims);
+      sem = r.hits !== hits;
+      hits.splice(0, hits.length, ...r.hits);
+      confident = r.confident;
+    }
     const interactions = analyse(db, cards, question);
     // Règles : d'abord celles citées par les interactions et la fiche FAQ retenue, puis la recherche par mots.
     const cited = [...interactions.points.flatMap(p => p.rules), ...(confident ? hits[0].rules : [])];
@@ -103,7 +125,7 @@ function createSearch(faqFile) {
     for (const id of new Set(cited)) { const r = db.rulesById.get(id); if (r) rules.push({ ...r }); }
     for (const r of db.searchRules(q || question, 12)) if (!rules.some(x => x.id === r.id)) rules.push(r);
     return {
-      faq: hits, faqConfident: !!confident,
+      faq: hits, faqConfident: !!confident, sem,
       cards: cards.map(c => db.getCard(c.id)),
       unknown: det.unknown, ambiguous: det.ambiguous, typos: det.typos,
       interactions,

@@ -8,6 +8,9 @@ const FAQ = require('./faq/faq-fr.json');
 const aiOnline = require('./src/ai-online');
 
 const search = createSearch(FAQ);
+// Dernières proximités « par le sens » calculées : l'IA et Claude reçoivent ainsi les mêmes fiches que l'écran.
+let lastSims = { q: null, sims: null };
+const simsFor = (q) => (lastSims.q === q ? lastSims.sims : null);
 const db = new Database('web');
 let progressFn = () => {};
 const status = { loaded: false, rulings: false, error: null };
@@ -142,13 +145,13 @@ async function edhrecFor(names) {
 
 window.juge = {
   aiPresets: aiOnline.PRESETS,
-  aiAsk: (s, q, onChunk, signal, onModel) => aiOnline.ask(s, aiOnline.buildMessages(q, search.consult(db, q)), onChunk, signal, onModel),
+  aiAsk: (s, q, onChunk, signal, onModel) => aiOnline.ask(s, aiOnline.buildMessages(q, search.consult(db, q, simsFor(q))), onChunk, signal, onModel),
   aiExplainDeck: (s, summary, onChunk, signal, onModel) => aiOnline.ask(s, [{ role: 'system', content: DECK_SYSTEM }, { role: 'user', content: summary }], onChunk, signal, onModel),
   deckPrompt: (summary) => DECK_SYSTEM + '\n\n' + summary,
   aiTranslate: (s, text) => aiOnline.ask(s, [{ role: 'system', content: TRANSLATE_SYSTEM }, { role: 'user', content: text }], () => {}),
-  claudeCopyPrompt: (q) => aiOnline.claudePrompt(q, search.consult(db, q)),
+  claudeCopyPrompt: (q) => aiOnline.claudePrompt(q, search.consult(db, q, simsFor(q))),
   lookupFrench,
-  claudePrompt: (q) => claudeIntro + '\n\n' + aiOnline.claudePrompt(q, search.consult(db, q)),
+  claudePrompt: (q) => claudeIntro + '\n\n' + aiOnline.claudePrompt(q, search.consult(db, q, simsFor(q))),
   claudeTools,
   load,
   engine: { db, search },
@@ -159,7 +162,8 @@ window.juge = {
   getRule: async (id) => db.getRule(id),
   ruleExists: async (ids) => ids.filter(id => db.rulesById.has(id)),
   faqAll: async () => search.faq.map(search.pubFaq),
-  consult: async (q) => search.consult(db, q),
+  consult: async (q, sims) => { lastSims = { q, sims: sims || null }; return search.consult(db, q, sims); },
+  faqCount: FAQ.length,
   searchFaq: (q, n = 5) => search.searchFaq(q, n),
   checkDeck: async (text, commanders) => checkDeck(db, text, commanders),
   analyzeDeck: async (entries) => {

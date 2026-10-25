@@ -361,6 +361,9 @@ label.inline select { width: auto; }
 .table-wrap.fs .sheet-wrap { position: fixed; inset: auto 8px 8px 8px; max-height: 70vh; overflow: auto; z-index: 41; box-shadow: 0 -8px 30px #0007; border-radius: 14px; }
 @media (max-width: 560px) { #tab-partie { --seat-h: 150px; } .seat-name { font-size: 14px; } .tap { font-size: 20px; padding: 0 4px; } .game-bar .turn { font-size: 16px; } }
 
+.maybe { border-left: 3px solid var(--gold); padding: 4px 0 4px 12px; margin: 10px 0; }
+.maybe-hit summary { color: var(--gold2); }
+.tag.sem { color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 0 6px; margin-left: 6px; }
 /* Analyse de deck */
 .an-grid { display: flex; flex-direction: column; gap: 4px; margin: 10px 0; }
 .an-row summary { display: grid; grid-template-columns: minmax(0, 13em) minmax(60px, 1fr) 2.5em 4em 4em; gap: 10px; align-items: center; cursor: pointer; padding: 6px 4px; border-radius: 6px; list-style: none; }
@@ -437,7 +440,7 @@ label.inline select { width: auto; }
       <button class="tab" data-tab="apropos"><span>⚙</span><b class="long">Paramètres</b><b class="short">Réglages</b></button>
     </nav>
     <div class="db-status" id="dbStatus">Chargement de la base…</div>
-    <div class="version muted small">Version 4 · table de jeu</div>
+    <div class="version muted small">Version 4.1 · recherche par le sens</div>
   </aside>
 
   <main>
@@ -550,6 +553,12 @@ label.inline select { width: auto; }
         <p class="muted small">Sans clé, « 💬 Demander à Claude » sous chaque réponse copie ta question avec les règles trouvées et ouvre claude.ai : il suffit de coller et d'envoyer. Un compte Claude gratuit suffit. « 🌐 Traduire » ouvre alors Google Traduction.</p>
       </div>
       <div class="card-box">
+        <h2>Recherche par le sens (optionnelle)</h2>
+        <p class="muted small">Comprend mieux les questions posées avec tes propres mots (« mon général crève, il revient où ? »). Un petit modèle d'IA tourne directement dans ton navigateur, sans compte ni clé, et rien n'est envoyé : il faut seulement le télécharger une fois (environ 118 Mo, à faire de préférence en wifi), ensuite il marche aussi hors ligne. Il ne prend la main que quand la recherche par mots-clés hésite.</p>
+        <div class="row"><button id="semOn" class="btn primary">Activer (118 Mo)</button><button id="semOff" class="btn">Désactiver</button></div>
+        <p id="semMsg" class="muted small"></p>
+      </div>
+      <div class="card-box">
         <h2>Base de données</h2>
         <p id="dbDetail" class="muted"></p>
         <p class="muted small">Mise à jour automatique chaque semaine (nouvelles cartes, rulings, liste d'interdiction, règles complètes). Après une première visite, le site marche aussi hors ligne. Sur téléphone, « Ajouter à l'écran d'accueil » l'installe comme une application.</p>
@@ -571,6 +580,7 @@ label.inline select { width: auto; }
 <script>window.JUGE_CONFIG = { repo: "Seboulo/Juge-mtg-test-AI" };</script>
 <script src="engine.js"></script>
 <script src="assistants.js"></script>
+<script src="semantic.js"></script>
 <script src="app.js"></script>
 <script src="game.js"></script>
 </body>

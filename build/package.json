@@ -4,9 +4,12 @@
   "description": "Construit le site Juge MTG Commander (moteur de recherche et base de données).",
   "scripts": {
     "engine": "esbuild engine-entry.js --bundle --minify --charset=utf8 --format=iife --alias:fs=./shims/fs.js --alias:path=./shims/path.js --alias:zlib=./shims/empty.js --outfile=../site/engine.js",
-    "data": "node scripts/update-data.js"
+    "data": "node scripts/update-data.js",
+    "embed": "node scripts/embed.js",
+    "bench": "node test/bench.js"
   },
   "devDependencies": {
+    "@huggingface/transformers": "4.3.1",
     "esbuild": "0.24.2",
     "stream-json": "1.9.1"
   }

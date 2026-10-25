@@ -1768,5 +1768,86 @@
   ],
   "tags": "hullbreaker horror contrecarrer contrer sorts adversaires renvoyer main",
   "card": "Hullbreaker Horror"
+ },
+ {
+  "cat": "Effets complexes",
+  "q": "Marqueurs +1/+1 et -1/-1 sur la même créature : que se passe-t-il ? Et la prolifération ?",
+  "a": "Ils s'annulent deux par deux : dès qu'une créature a les deux sortes, on retire autant de marqueurs +1/+1 que de -1/-1 (le plus petit des deux nombres), comme action basée sur un état. Une créature avec 3 marqueurs +1/+1 qui reçoit 1 marqueur -1/-1 garde donc 2 marqueurs +1/+1. Proliférer : tu choisis autant de permanents et de joueurs que tu veux parmi ceux qui ont déjà un marqueur, et chacun reçoit un marqueur de plus de chaque sorte qu'il a déjà (poison, loyauté, +1/+1, énergie…). Tu peux ignorer ceux que tu ne veux pas faire grossir, par exemple la créature d'un adversaire.",
+  "rules": [
+   "122.3",
+   "704.5q",
+   "701.34a",
+   "122.1"
+  ],
+  "tags": "marqueur marqueurs +1/+1 -1/-1 annule annulent s annulent proliferer proliferation proliferate counters poison loyaute energie"
+ },
+ {
+  "cat": "Effets complexes",
+  "q": "Panharmonicon, Yarok, Teysa : comment marchent les effets qui font se déclencher une capacité une fois de plus ?",
+  "a": "Quand un effet dit qu'une capacité déclenchée « se déclenche une fois de plus », on compte simplement combien de fois elle se déclenche, puis elle se déclenche autant de fois : chaque exemplaire va sur la pile séparément et peut être contré séparément. Deux effets différents (par ex. Panharmonicon et Yarok) s'additionnent : la capacité se déclenche trois fois. Deux exemplaires du même effet s'additionnent aussi. En revanche un tel effet ne se multiplie pas lui-même et ne double pas les autres effets de ce genre. Attention à bien lire ce qui est doublé : Panharmonicon ne concerne que les arrivées d'artefacts et de créatures, Teysa Karlov les capacités déclenchées par la mort d'une créature.",
+  "rules": [
+   "603.2d"
+  ],
+  "tags": "panharmonicon yarok teysa karlov drivnod roaming throne doubleur doubler declencheur declenchement une fois de plus deux fois triggers additional time double declenchement"
+ },
+ {
+  "cat": "Pile et timing",
+  "q": "Boucle infinie : comment l'annoncer, et que se passe-t-il si personne ne peut l'arrêter ?",
+  "a": "Pour une boucle qui comporte au moins une action facultative (un combo que tu choisis de répéter), tu n'as pas à la faire à la main : tu décris la boucle et tu annonces combien de fois tu la répètes (« je le fais un million de fois »), puis chaque joueur peut accepter ou indiquer à quel moment il veut agir. Tu dois annoncer un nombre précis : on ne peut pas dire « à l'infini ». Si la boucle ne comporte que des actions obligatoires et que personne ne peut l'arrêter, la partie est nulle pour tout le monde. Personne ne peut être forcé à faire une action qui casse la boucle, sauf si elle est demandée par un objet de la boucle.",
+  "rules": [
+   "732.2a",
+   "732.4",
+   "732.5",
+   "104.4b"
+  ],
+  "tags": "boucle infinie infini combo annoncer raccourci repeter loop nulle egalite match nul obligatoire facultative million"
+ },
+ {
+  "cat": "Mots-clés et bases",
+  "q": "Jour et nuit : quand est-ce que ça change ?",
+  "a": "La partie commence sans jour ni nuit. Dès qu'un permanent avec « jour » (daybound) arrive, ou qu'un effet le dit, il fait jour. Ensuite, on vérifie au début de chaque étape de dégagement en regardant le tour précédent : s'il faisait jour et que le joueur actif du tour précédent n'a lancé aucun sort, il fait nuit ; s'il faisait nuit et qu'il a lancé deux sorts ou plus, il fait jour. Les cartes double face avec jour/nuit se transforment toutes ensemble selon le moment. Une fois que le jour ou la nuit existe, il ne disparaît plus de la partie. Le suivi de partie du site a un bouton ☀/☾ pour s'en souvenir.",
+  "rules": [
+   "731.1",
+   "731.2",
+   "502.2",
+   "702.145b",
+   "702.145d"
+  ],
+  "tags": "jour nuit daybound nightbound diurne nocturne loup garou werewolf change transforme deux sorts aucun sort"
+ },
+ {
+  "cat": "Mots-clés et bases",
+  "q": "Meule, regard, surveillance : quelle différence (mill, scry, surveil) ?",
+  "a": "Meuler N : on met les N cartes du dessus de sa bibliothèque dans son cimetière, sans choix. Regard N (scry) : on regarde les N cartes du dessus, on en met autant qu'on veut au-dessous de la bibliothèque et le reste au-dessus, dans l'ordre de son choix. Surveillance N (surveil) : pareil, mais les cartes écartées vont au cimetière au lieu du dessous de la bibliothèque. Aucune de ces actions ne fait piocher. Si on doit meuler plus de cartes qu'il n'en reste, on meule ce qu'il reste, sans perdre pour autant : on ne perd que si on doit piocher dans une bibliothèque vide.",
+  "rules": [
+   "701.17a",
+   "701.22a",
+   "701.25a",
+   "704.5b"
+  ],
+  "tags": "meule meuler mill regard scry surveillance surveil bibliotheque cimetiere dessus dessous difference"
+ },
+ {
+  "cat": "Mots-clés et bases",
+  "q": "Équipement : quand puis-je équiper, et que devient l'Équipement si la créature meurt ou change de contrôleur ?",
+  "a": "Équiper est une capacité activée qu'on n'utilise qu'à vitesse de rituel : pendant sa phase principale, pile vide, et seulement sur une créature qu'on contrôle. On peut la réactiver pour déplacer l'Équipement sur une autre de ses créatures. Si la créature équipée meurt ou quitte le champ de bataille, l'Équipement reste en jeu, non attaché. Si un adversaire prend le contrôle de la créature, l'Équipement reste attaché (tu le contrôles toujours) jusqu'à ce que tu le déplaces ; si c'est l'Équipement qui change de contrôleur, il reste attaché jusqu'à ce que son nouveau contrôleur l'équipe ailleurs, mais il ne peut plus être déplacé sur une créature que ce joueur ne contrôle pas.",
+  "rules": [
+   "702.6a",
+   "704.5n",
+   "301.5d"
+  ],
+  "tags": "equipement equiper equip quand vitesse rituel deplacer equipe meurt controle creature equipee"
+ },
+ {
+  "cat": "Pile et timing",
+  "q": "Capacités « au début de la prochaine étape de fin » (déclenchements retardés) : comment ça marche ?",
+  "a": "Certains sorts ou capacités créent une capacité qui se déclenchera plus tard, par exemple « sacrifie-la au début de la prochaine étape de fin » (Sneak Attack, jetons de Kiki-Jiki) ou « renvoie-la à la fin du tour ». Cette capacité retardée se déclenche une seule fois, au moment indiqué, même si la carte qui l'a créée n'est plus là. Si l'objet visé a changé de zone entre-temps (il est mort, a été clignoté…), c'est un nouvel objet et la capacité ne lui fait plus rien : une créature clignotée ne sera donc pas sacrifiée.",
+  "rules": [
+   "603.7",
+   "603.7a",
+   "603.7c",
+   "400.7"
+  ],
+  "tags": "retarde retardee declenchement retarde prochaine etape de fin fin du tour sacrifie la sneak attack kiki jiki delayed trigger renvoie clignote"
  }
 ]

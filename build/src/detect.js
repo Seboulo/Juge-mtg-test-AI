@@ -15,7 +15,7 @@ const FRENCH = ('mon ma mes ton ta tes son sa ses notre votre leur leurs un une 
 // Surnoms courants chez les joueurs → nom exact de la carte.
 const ALIASES = {
   'rip': 'Rest in Peace', 'stp': 'Swords to Plowshares', 'swords': 'Swords to Plowshares', 'path': 'Path to Exile',
-  'oring': 'Oblivion Ring', 'anneau d oubli': 'Oblivion Ring', 'anneau de l oubli': 'Oblivion Ring', 'o ring': 'Oblivion Ring', 'thoracle': "Thassa's Oracle", 'thassa oracle': "Thassa's Oracle",
+  'oring': 'Oblivion Ring', 'anneau d oubli': 'Oblivion Ring', 'anneau de oubli': 'Oblivion Ring', 'anneau doubli': 'Oblivion Ring', 'anneau de l oubli': 'Oblivion Ring', 'o ring': 'Oblivion Ring', 'thoracle': "Thassa's Oracle", 'thassa oracle': "Thassa's Oracle",
   'labman': 'Laboratory Maniac', 'lab man': 'Laboratory Maniac', 'lab maniac': 'Laboratory Maniac', 'hoof': 'Craterhoof Behemoth',
   'tef prot': "Teferi's Protection", 'teferi protection': "Teferi's Protection", 'rhystic': 'Rhystic Study', 'tithe': 'Smothering Tithe',
   'dockside': 'Dockside Extortionist', 'demonic': 'Demonic Tutor', 'vamp tutor': 'Vampiric Tutor', 'vampiric': 'Vampiric Tutor',
@@ -43,6 +43,9 @@ const ALIASES = {
 };
 
 // Mots français qui ressemblent à des débuts de noms de cartes anglais.
+// Termes de règles qui sont aussi des noms de cartes : jamais pris pour une carte sans majuscule ni [[ ]].
+const RULE_WORDS = new Set('protection vigilance sacrifice regeneration indestructible indestructibles cascade invocation attaque commande energie destruction evolution mutation transformation fusion infini devotion legende oracle adverse adverses augmente augmenter'.split(' '));
+const ARTICLES = new Set('le la les l un une des du de d ma ta sa mon ton son mes tes ses ce cet cette ces leur leurs notre votre en au aux par'.split(' '));
 const EXTRA_FR = new Set('adverse adverses augmente augmenter invocation indestructible indestructibles infernal infernale eternal eternel abandon absolu acharnement ambition ancestral ancien animation apparition apocalypse arcane armageddon assassin attaque aventure avalanche barrage benediction brutal brutale cascade catastrophe celeste champion chaos colosse commande conversion corruption couronne creation crypte damnation demolition destin destruction devastation devotion divination domination eclipse emeraude empire energie eruption evolution exhumation expansion explosion extinction fantome fatal fatale fortune fusion gardien glorieux harmonie horizon illusion immortel imperial infini inspiration invasion justice labyrinthe legende liberation lumiere machination malediction memoire meditation metamorphose miracle mirage misericorde mutation nature nocturne oblivion obsession offrande oracle ordre paradoxe perdition perfection phoenix pillage possession predateur prophetie protection providence purification reanimation rebellion recolte reconstruction redemption reflexion regeneration renaissance resurrection retribution revelation revolution sacrifice sanctuaire sentinelle serpent silence solitude souverain spectre supreme survivant tempete terreur titan tornade tourment trahison transformation triomphe tyran vengeance victoire vigilance violence volcanique'.split(' '));
 
 class CardDetector {
@@ -115,6 +118,11 @@ class CardDetector {
       this.byFirst.get(f).push(k);
     }
     this.maxWords = 8;
+  }
+
+  // Carte très jouée (classement EDHREC parmi les 3 000 premières).
+  popular(entry) {
+    return [...entry.strong, ...entry.weak].some(id => { const c = this.db.cardsById.get(id); return c && c.er && c.er <= 3000; });
   }
 
   // Popularité approximative (pour départager « Atraxa ») : rang EDHREC, sinon commandant possible, nombre de rulings.
@@ -199,7 +207,9 @@ class CardDetector {
         // Mot français courant écrit en minuscules qui est aussi le nom français d'une carte (« la hâte », « vide »,
         // « la valeur ») ou un nom anglais sans « The » (« moment ») : ce n'est pas une carte, sauf entre [[ ]] ou avec une majuscule.
         const lower = !caps.slice(i, i + len).some(Boolean);
-        if (e && !e.alias && lower && ws.filter(w => !this.glue.has(w)).length <= 1 && (this.frOnly.has(phrase) || this.theOnly.has(phrase) || (len === 1 && EXTRA_FR.has(phrase)))) continue;
+        // Exception : un mot sans article devant (« je lance damnation », « damnation tue… ») qui est le nom d'une carte très jouée.
+        const asName = len === 1 && e && !e.alias && EXTRA_FR.has(phrase) && !RULE_WORDS.has(phrase) && !ARTICLES.has(words[i - 1]) && this.popular(e);
+        if (e && !e.alias && lower && !asName && ws.filter(w => !this.glue.has(w)).length <= 1 && (this.frOnly.has(phrase) || this.theOnly.has(phrase) || (len === 1 && EXTRA_FR.has(phrase)))) continue;
         if (e && e.alias) {
           hit = { e, len, phrase, typo: false };
         } else if (e && !allCommon) {
@@ -208,7 +218,9 @@ class CardDetector {
         } else if (e && allCommon && caps[i] && len >= 1 && phrase.length >= 4 && i > 0) {
           // Mot courant écrit avec une majuscule en milieu de phrase : « un Clone de mon commandant ».
           hit = { e, len, phrase, typo: false };
-        } else if (!allCommon && !this.glue.has(ws[0]) && !this.glue.has(ws[len - 1]) && (len >= 2 ? phrase.length >= 7 : phrase.length >= 8) && ws.filter(w => !this.common.has(w)).length >= Math.ceil(len / 2)) {
+        } else if (e && asName) {
+          hit = { e, len, phrase, typo: false };
+        } else if (!allCommon && !(this.idx.get(ws[0]) || {}).alias && !this.glue.has(ws[0]) && !this.glue.has(ws[len - 1]) && (len >= 2 ? phrase.length >= 7 : phrase.length >= 8) && ws.filter(w => !this.common.has(w)).length >= Math.ceil(len / 2)) {
           const k = this.fuzzy(phrase);
           if (k && k.split(' ').length === len) hit = { e: this.idx.get(k), len, phrase: k, typo: true, said: phrase };
         }

@@ -59,7 +59,7 @@ function nextAlive(i) {
   return i;
 }
 // Monarque et initiative : si le joueur qui les a quitte la partie, ils passent au joueur actif
-// (ou au suivant dans l'ordre du tour si c'était son tour) — règles 724.4 et 725.4.
+// (ou au suivant dans l'ordre du tour si c'était son tour) — règles 725.4 et 726.4.
 function settleDesignations() {
   const g = gameState;
   for (const key of ['monarch', 'initiative']) {

@@ -109,7 +109,8 @@ $('#askForm').addEventListener('submit', async (e) => {
   if (!question) return;
   hideSuggest();
   if (!state.loaded) { $('#askBtn').disabled = true; $('#askBtn').textContent = 'Chargement…'; await ready; $('#askBtn').disabled = false; $('#askBtn').textContent = 'Rechercher'; }
-  const c = await juge.consult(question);
+  const sims = typeof semantique !== 'undefined' ? await semantique.sims(question) : null;
+  const c = await juge.consult(question, sims);
   const conv = $('#conversation');
   const best = c.faq[0];
   let html = `<div class="qa" data-q="${esc(question)}" data-fiche="${esc(best && c.faqConfident ? best.q : '')}" data-sure="${best && c.faqConfident ? 1 : 0}"><div class="q-bubble">${esc(question)}</div><div class="a-block">`;
@@ -117,13 +118,16 @@ $('#askForm').addEventListener('submit', async (e) => {
   html += detectNote(c);
   html += interHtml(c.interactions, c.cards.length);
   if (best && c.faqConfident) {
-    html += `<div class="best"><span class="tag">Fiche la plus proche</span><h2>${esc(best.q)}</h2><p>${inline(esc(best.a))}</p>${best.rules.length ? `<p class="small muted">Règles : ${best.rules.map(r => `<span class="rule-ref" data-r="${r}">${r}</span>`).join(', ')}</p>` : ''}</div>`;
+    html += `<div class="best"><span class="tag">Fiche la plus proche</span>${best.sem ? ' <span class="tag sem">trouvée par le sens</span>' : ''}<h2>${esc(best.q)}</h2><p>${inline(esc(best.a))}</p>${best.rules.length ? `<p class="small muted">Règles : ${best.rules.map(r => `<span class="rule-ref" data-r="${r}">${r}</span>`).join(', ')}</p>` : ''}</div>`;
+  } else if (c.faq.length) {
+    // Pas de fiche sûre : on propose les plus proches, la réponse s'ouvre en touchant la question.
+    html += `<div class="maybe"><p class="muted">Pas de fiche sûre pour cette question. Tu voulais dire :</p>${c.faq.slice(0, 3).map(f => `<details class="faq-hit maybe-hit"><summary><strong>${esc(f.q)}</strong></summary><p>${inline(esc(f.a))}</p>${f.rules.length ? `<p class="small muted">Règles : ${refs(f.rules)}</p>` : ''}</details>`).join('')}${typeof semantique !== 'undefined' && semantique.state === 'off' ? '<p class="small muted">Question posée avec tes mots ? La <a href="#" class="go-params">recherche par le sens</a> (dans Paramètres) comprend mieux les reformulations.</p>' : ''}</div>`;
   } else {
-    html += `<p class="muted">Aucune fiche ne correspond exactement à ta question. Voici ce que la base contient de plus proche.</p>`;
+    html += `<p class="muted">Aucune fiche ne correspond à ta question : essaie avec d'autres mots, ou demande à l'IA.</p>`;
   }
   const assists = suggestAssistants(question);
   if (assists.length) html += '<h4>Assistants guidés</h4><div class="pill-row">' + assists.map(a => `<button class="pill go-assist" data-a="${a.id}">${a.icon} ${esc(a.title)}</button>`).join('') + '</div>';
-  const others = c.faq.slice(best && c.faqConfident ? 1 : 0);
+  const others = c.faq.slice(best && c.faqConfident ? 1 : 3);
   if (others.length) html += '<h4>Autres fiches</h4>' + others.map(f => `<details class="faq-hit"><summary><strong>${esc(f.q)}</strong></summary><p>${inline(esc(f.a))}</p>${f.rules.length ? `<p class="small muted">Règles : ${f.rules.map(r => `<span class="rule-ref" data-r="${r}">${r}</span>`).join(', ')}</p>` : ''}</details>`).join('');
   if (c.cards.length) html += '<h4>Cartes citées : texte Oracle et rulings officiels</h4>' + c.cards.map(k => `<details class="faq-hit" ${c.cards.length <= 2 ? 'open' : ''}><summary><strong>${esc(k.name)}</strong>${k.nameFr ? ' · ' + esc(k.nameFr) : ''} <span class="muted small">${k.rulings.length} ruling(s)</span></summary>${cardHtml(k, true)}</details>`).join('');
   if (c.unknown.length) html += `<p class="small muted">Introuvable dans la base : ${c.unknown.map(esc).join(', ')} (essaie le nom anglais, ou mets le nom entre [[ ]]).</p>`;
@@ -474,6 +478,17 @@ function renderFaq(filter = '') {
   $('#faqList').innerHTML = html || '<p class="muted">Aucune fiche ne correspond.</p>';
 }
 $('#faqSearch').addEventListener('input', debounce(() => renderFaq($('#faqSearch').value), 120));
+// ---------- Recherche par le sens : activation et état du téléchargement ----------
+if (typeof semantique !== 'undefined') {
+  semantique.onChange((st, msg) => {
+    $('#semMsg').textContent = st === 'off' ? 'Désactivée.' : msg;
+    $('#semOn').hidden = st !== 'off' && st !== 'error';
+    $('#semOff').hidden = st === 'off';
+  });
+  $('#semOn').addEventListener('click', () => semantique.enable());
+  $('#semOff').addEventListener('click', () => semantique.disable());
+}
+
 // ---------- Paramètres de l'IA ----------
 function loadSettings() {
   const s = state.settings;
@@ -511,7 +526,14 @@ function renderReports() {
   const list = readReports();
   $('#reportList').innerHTML = list.length
     ? '<ul>' + list.slice(0, 30).map(r => `<li><b>${esc(r.question)}</b><br><span class="muted small">${new Date(r.date).toLocaleString('fr-FR')} · ${esc(r.probleme)}${r.fiche ? ' · fiche « ' + esc(r.fiche) + ' »' : ''}</span>${r.commentaire ? `<br>${esc(r.commentaire)}` : ''}</li>`).join('') + '</ul>'
+    + '<button class="btn sm" id="reportsForTests">Copier pour les tests</button>'
     : '<p class="muted small">Aucun signalement envoyé depuis cet appareil.</p>';
+  const b = $('#reportsForTests');
+  // Lignes au format des bancs d'essai (build/test/bench-signalements.js) : il reste à noter la bonne fiche.
+  if (b) b.onclick = async () => {
+    const lines = list.map(r => `  [${JSON.stringify(r.question)}, [], null, null], // ${(r.probleme + (r.commentaire ? ' : ' + r.commentaire : '')).replace(/\s+/g, ' ')}`).join('\n');
+    try { await navigator.clipboard.writeText(lines); b.textContent = 'Copié ✓'; } catch { b.textContent = 'Copie impossible'; }
+  };
 }
 
 // ---------- Assistants guidés ----------
