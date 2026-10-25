@@ -37,9 +37,11 @@ const semantique = (() => {
       set('loading', 'Préparation…');
       fiches = await loadFiches();
       const { pipeline, env } = await import(here('lib/transformers.min.js'));
-      env.allowRemoteModels = false;
-      env.allowLocalModels = true;
-      env.localModelPath = here('models/');
+      // Le site joue le rôle du serveur de modèles (les « modèles locaux » de la bibliothèque n'acceptent pas d'adresse web).
+      env.allowLocalModels = false;
+      env.allowRemoteModels = true;
+      env.remoteHost = here('models/');
+      env.remotePathTemplate = '{model}/';
       env.backends.onnx.wasm.wasmPaths = { mjs: here('lib/ort-wasm-simd-threaded.mjs'), wasm: here('lib/ort-wasm-simd-threaded.wasm') };
       const files = {};
       embed = await pipeline('feature-extraction', fiches.model, {
