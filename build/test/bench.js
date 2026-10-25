@@ -44,3 +44,18 @@ for (const f of files) {
   if (verbose && fails.length) console.log(fails.join('\n'));
   console.log(`${f.padEnd(26)} cartes ${ok.cards}/${tot.cards}  interactions ${ok.inter}/${tot.inter}  FAQ ${ok.faq}/${tot.faq}`);
 }
+
+// Cartes cherchées par ce qu'elles font.
+{
+  const { createCardSearch } = require('../src/card-search');
+  const cs = createCardSearch(db);
+  let top1 = 0, top10 = 0;
+  const rows = require('./cartes-effet');
+  for (const [q, exp] of rows) {
+    const names = cs.search(q, { limit: 10 }).map(r => db.cardsById.get(r.id).name);
+    if (exp.includes(names[0])) top1++;
+    if (names.some(n => exp.includes(n))) top10++;
+    else if (verbose) console.log(`EFFET   ${q}\n     obtenu ${names.slice(0, 5).join(' | ')}`);
+  }
+  console.log(`${'cartes-effet.js'.padEnd(26)} en tête ${top1}/${rows.length}  dans les 10 premières ${top10}/${rows.length}`);
+}

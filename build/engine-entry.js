@@ -2,6 +2,7 @@
 // exposé au navigateur sous window.juge, avec la même interface que l'application.
 const { Database } = require('./src/data');
 const { createSearch } = require('./src/search');
+const { createCardSearch } = require('./src/card-search');
 const { checkDeck, canBeCommander } = require('./src/deck');
 const { analyzeDeck, setRoleTags } = require('./src/analyze');
 const FAQ = require('./faq/faq-fr.json');
@@ -12,6 +13,7 @@ const search = createSearch(FAQ);
 let lastSims = { q: null, sims: null };
 const simsFor = (q) => (lastSims.q === q ? lastSims.sims : null);
 const db = new Database('web');
+const cardSearch = createCardSearch(db);
 let progressFn = () => {};
 const status = { loaded: false, rulings: false, error: null };
 
@@ -145,7 +147,11 @@ async function edhrecFor(names) {
 
 window.juge = {
   aiPresets: aiOnline.PRESETS,
-  aiAsk: (s, q, onChunk, signal, onModel) => aiOnline.ask(s, aiOnline.buildMessages(q, search.consult(db, q, simsFor(q))), onChunk, signal, onModel),
+  // L'IA vérifie elle-même dans la base (outils) ; « aiTools: false » dans les réglages revient à la réponse simple.
+  aiAsk: (s, q, onChunk, signal, onModel, onStatus) => {
+    const msgs = aiOnline.buildMessages(q, search.consult(db, q, simsFor(q)));
+    return s.aiTools === false ? aiOnline.ask(s, msgs, onChunk, signal, onModel) : aiOnline.askWithTools(s, msgs, claudeTools(), { onChunk, onStatus, signal, onModel });
+  },
   aiExplainDeck: (s, summary, onChunk, signal, onModel) => aiOnline.ask(s, [{ role: 'system', content: DECK_SYSTEM }, { role: 'user', content: summary }], onChunk, signal, onModel),
   deckPrompt: (summary) => DECK_SYSTEM + '\n\n' + summary,
   aiTranslate: (s, text) => aiOnline.ask(s, [{ role: 'system', content: TRANSLATE_SYSTEM }, { role: 'user', content: text }], () => {}),
@@ -157,6 +163,9 @@ window.juge = {
   engine: { db, search },
   status: async () => ({ ...db.status(), loaded: status.loaded, rulingsLoaded: status.rulings, error: status.error }),
   searchCards: async (q) => db.searchCards(q),
+  // Cartes qui correspondent à une description (« piocher quand une créature meurt »).
+  cardsByEffect: async (q) => cardSearch.search(q, { limit: 25 })
+    .map(r => db.cardSummary(db.cardsById.get(r.id))),
   getCard: async (id) => db.getCard(id),
   searchRules: async (q) => db.searchRules(q),
   getRule: async (id) => db.getRule(id),

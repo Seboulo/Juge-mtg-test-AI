@@ -12,3 +12,4 @@ Le numéro de fiche est sa position dans `build/faq/faq-fr.json` (en partant de 
 
 Avant de changer la recherche, lancer le banc ; après, vérifier qu'aucun score ne baisse.
 La recherche par le sens (modèle e5) n'est pas mesurée ici : ses seuils ont été réglés à part sur ces mêmes questions.
+- `cartes-effet.js` : descriptions d'effets (« doubler les jetons ») pour la recherche de cartes de l'onglet Cartes.

@@ -127,6 +127,7 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--g
 .search-head { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
 .search-head input { flex: 1 1 220px; min-width: 0; }
 .search-head .btn { white-space: nowrap; }
+.results li.res-head { cursor: default; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--gold); background: none; border: 0; padding-top: 10px; }
 .split { display: flex; gap: 16px; align-items: flex-start; }
 .results { list-style: none; margin: 0; padding: 0; width: 340px; flex-shrink: 0; max-height: 70vh; overflow-y: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--bg2); }
 .results li { padding: 9px 12px; border-bottom: 1px solid var(--line); cursor: pointer; }
@@ -441,7 +442,7 @@ label.inline select { width: auto; }
       <button class="tab" data-tab="apropos"><span>⚙</span><b class="long">Paramètres</b><b class="short">Réglages</b></button>
     </nav>
     <div class="db-status" id="dbStatus">Chargement de la base…</div>
-    <div class="version muted small">Version 4.1 · recherche par le sens</div>
+    <div class="version muted small">Version 4.2 · cartes par effet, IA qui vérifie</div>
   </aside>
 
   <main>
@@ -504,7 +505,7 @@ label.inline select { width: auto; }
     <!-- CARTES -->
     <section id="tab-cartes" class="panel">
       <div class="search-head">
-        <input id="cardSearch" type="search" placeholder="Nom de carte, en anglais ou en français…">
+        <input id="cardSearch" type="search" placeholder="Nom de carte, ou ce qu'elle fait (« piocher quand une créature meurt »)">
         <button id="cardFrBtn" class="btn">Chercher le nom français en ligne</button>
       </div>
       <div class="split">
@@ -547,6 +548,7 @@ label.inline select { width: auto; }
           <label>Modèle (laisser vide = choix automatique) <input id="aiModel" type="text" autocomplete="off"></label>
           <label id="aiBaseRow">Adresse de l'API <input id="aiBaseUrl" type="text" autocomplete="off" placeholder="https://…/v1"></label>
           <label class="toggle check"><input type="checkbox" id="aiAuto" checked> Lancer la réponse de l'IA automatiquement à chaque question</label>
+          <label class="toggle check"><input type="checkbox" id="aiTools" checked> L'IA vérifie elle-même les cartes, fiches et règles dans la base avant de répondre (plus fiable, un peu plus lent)</label>
           <div class="row"><button id="aiSave" class="btn primary">Enregistrer et tester</button><button id="aiForget" class="btn">Effacer la clé</button></div>
           <p id="aiMsg" class="muted small"></p>
           <p class="muted small">La clé reste uniquement dans ce navigateur, sur cet appareil. Elle n'est envoyée qu'au service choisi.</p>

@@ -241,13 +241,14 @@ async function startAi(qa) {
   }
   if (go.ctrl) { go.ctrl.abort(); return; }
   const ctrl = go.ctrl = new AbortController();
-  let text = '';
-  const draw = (tail) => { box.innerHTML = '<span class="tag">Réponse rédigée par l\'IA</span>' + (text ? markdown(text) : '<p class="thinking">L\'IA lit les règles trouvées…</p>') + (tail || ''); };
+  let text = '', checks = [];
+  const checked = () => checks.length ? `<p class="muted small ai-checks">🔎 Vérifié dans la base : ${checks.map(esc).join(' · ')}</p>` : '';
+  const draw = (tail) => { box.innerHTML = '<span class="tag">Réponse rédigée par l\'IA</span>' + (text ? markdown(text) : `<p class="thinking">${checks.length ? 'L\'IA vérifie dans la base…' : 'L\'IA lit les règles trouvées…'}</p>`) + checked() + (tail || ''); };
   draw();
   go.textContent = '■ Arrêter';
   try {
     await juge.aiAsk(state.settings, qa.dataset.q, (piece) => { text += piece; draw('<p class="thinking"></p>'); }, ctrl.signal,
-      (m) => saveSettingsObj({ ...state.settings, aiModel: m }));
+      (m) => saveSettingsObj({ ...state.settings, aiModel: m }), (label) => { checks.push(label); draw(); });
     draw('<p class="muted small">Générée par une IA à partir des fiches et des règles ci-dessous : vérifie les numéros de règles en cliquant dessus.</p>');
     verifyRuleRefs(box);
   } catch (e) {
@@ -350,15 +351,24 @@ document.addEventListener('click', async (e) => {
 });
 
 // ---------- Cartes ----------
+// Une phrase de plusieurs mots (« piocher quand une créature meurt ») est aussi cherchée dans le texte des cartes.
+const looksLikeEffect = (q) => q.split(/\s+/).filter(w => w.length > 2).length >= 3;
+let cardSeq = 0;
 async function cardSearch() {
   const q = $('#cardSearch').value.trim();
+  const seq = ++cardSeq;
   if (!q) { $('#cardResults').innerHTML = ''; return; }
   if (!state.loaded) { $('#cardResults').innerHTML = '<li class="muted">Base en cours de chargement…</li>'; return; }
-  renderCardList(await juge.searchCards(q));
+  const byName = await juge.searchCards(q);
+  if (!looksLikeEffect(q)) { renderCardList(byName); return; }
+  const list = (await juge.cardsByEffect(q)).filter(c => !byName.some(b => b.id === c.id));
+  if (seq !== cardSeq) return;
+  renderCardList(byName, list.length ? '<li class="res-head">🔮 Cartes qui font ça</li>' + cardItems(list) : '');
 }
-function renderCardList(list) {
-  $('#cardResults').innerHTML = list.length ? list.map(c => `<li data-id="${esc(c.id)}">${esc(c.name)}${c.nameFr ? ` <span class="muted">· ${esc(c.nameFr)}</span>` : ''}<small>${manaHtml(c.mana)} ${esc(c.type)}</small></li>`).join('')
-    : '<li class="muted">Aucun résultat. Pour un nom français, utilise « Chercher le nom français en ligne ».</li>';
+const cardItems = (list) => list.map(c => `<li data-id="${esc(c.id)}">${esc(c.name)}${c.nameFr ? ` <span class="muted">· ${esc(c.nameFr)}</span>` : ''}<small>${manaHtml(c.mana)} ${esc(c.type)}</small></li>`).join('');
+function renderCardList(list, extra = '') {
+  $('#cardResults').innerHTML = (list.length ? (extra ? '<li class="res-head">Par le nom</li>' : '') + cardItems(list)
+    : extra ? '' : '<li class="muted">Aucun résultat. Pour un nom français, utilise « Chercher le nom français en ligne ». Tu peux aussi décrire ce que fait la carte.</li>') + extra;
   $$('#cardResults li[data-id]').forEach(li => li.addEventListener('click', async () => {
     $$('#cardResults li').forEach(x => x.classList.remove('sel'));
     li.classList.add('sel');
@@ -499,6 +509,7 @@ function loadSettings() {
   $('#aiModel').value = s.aiModel || '';
   $('#aiBaseUrl').value = s.aiBaseUrl || '';
   $('#aiAuto').checked = s.aiAuto !== false;
+  $('#aiTools').checked = s.aiTools !== false;
   aiFieldsUi();
 }
 function aiFieldsUi() {
@@ -508,9 +519,10 @@ function aiFieldsUi() {
   const pr = juge.aiPresets[p];
   $('#aiKeyHelp').innerHTML = pr && pr.keyUrl ? `Clé gratuite : connecte-toi sur <a href="${pr.keyUrl}" target="_blank" rel="noopener">${pr.keyUrl.replace('https://', '')}</a>, crée une clé et colle-la ici. Modèle par défaut : ${esc(pr.model)}.` : '';
 }
-const saveAi = () => saveSettingsObj({ ...state.settings, aiProvider: $('#aiProvider').value, aiKey: $('#aiKey').value.trim(), aiModel: $('#aiModel').value.trim(), aiBaseUrl: $('#aiBaseUrl').value.trim(), aiAuto: $('#aiAuto').checked });
+const saveAi = () => saveSettingsObj({ ...state.settings, aiProvider: $('#aiProvider').value, aiKey: $('#aiKey').value.trim(), aiModel: $('#aiModel').value.trim(), aiBaseUrl: $('#aiBaseUrl').value.trim(), aiAuto: $('#aiAuto').checked, aiTools: $('#aiTools').checked });
 $('#aiProvider').addEventListener('change', () => { aiFieldsUi(); saveAi(); });
 $('#aiAuto').addEventListener('change', saveAi);
+$('#aiTools').addEventListener('change', saveAi);
 $('#aiSave').addEventListener('click', async () => {
   saveAi();
   if (!aiReady()) { $('#aiMsg').textContent = 'Choisis un service et colle ta clé.'; return; }
