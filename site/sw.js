@@ -12,7 +12,8 @@ self.addEventListener('activate', (e) => {
 });
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
-  if (e.request.method !== 'GET' || url.origin !== location.origin) return;
+  // Le modèle de la recherche par le sens (~118 Mo) est déjà gardé par sa bibliothèque : pas de double copie.
+  if (e.request.method !== 'GET' || url.origin !== location.origin || url.pathname.includes('/models/')) return;
   e.respondWith(caches.open(CACHE).then(async (cache) => {
     try {
       // « no-cache » : le navigateur revalide auprès de GitHub au lieu de reprendre une ancienne copie.

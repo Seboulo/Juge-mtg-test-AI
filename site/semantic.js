@@ -1,10 +1,11 @@
-// Recherche par le sens (optionnelle) : un petit modèle multilingue (multilingual-e5-small, ~118 Mo, téléchargé
+// Recherche par le sens (optionnelle) : un petit modèle multilingue (multilingual-e5-small, ~130 Mo avec son moteur, téléchargé
 // une seule fois puis gardé par le navigateur) transforme la question en « signature » et la compare à celle de
 // chaque fiche (data/faq-emb.json, calculé à la mise à jour du site). Le moteur s'en sert seulement quand
 // les mots-clés hésitent (voir semPick dans build/src/search.js).
 const semantique = (() => {
   const KEY = 'juge-sens';
-  const LIB = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.1';
+  // Modèle et moteur servis par le site lui-même (copiés à la publication par build/scripts/embed.js).
+  const here = (p) => new URL(p, location.href).href;
   let st = 'off', msg = '', embed = null, fiches = null, loading = null;
   const listeners = new Set();
   const set = (s, m = '') => { st = s; msg = m; listeners.forEach(fn => { try { fn(st, msg); } catch {} }); };
@@ -35,8 +36,11 @@ const semantique = (() => {
     loading = (async () => {
       set('loading', 'Préparation…');
       fiches = await loadFiches();
-      const { pipeline, env } = await import(LIB);
-      env.allowLocalModels = false;
+      const { pipeline, env } = await import(here('lib/transformers.min.js'));
+      env.allowRemoteModels = false;
+      env.allowLocalModels = true;
+      env.localModelPath = here('models/');
+      env.backends.onnx.wasm.wasmPaths = { mjs: here('lib/ort-wasm-simd-threaded.mjs'), wasm: here('lib/ort-wasm-simd-threaded.wasm') };
       const files = {};
       embed = await pipeline('feature-extraction', fiches.model, {
         dtype: 'q8',

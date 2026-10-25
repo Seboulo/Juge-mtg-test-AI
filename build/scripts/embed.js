@@ -12,7 +12,7 @@ const plainAnswer = (a) => a.replace(/\[\[|\]\]|\*\*|`/g, '').replace(/\s+/g, ' 
 const ficheText = (f) => `${f.q} ${plainAnswer(f.a).slice(0, 220)}`;
 
 (async () => {
-  const { pipeline } = await import('@huggingface/transformers');
+  const { pipeline, env } = await import('@huggingface/transformers');
   const embed = await pipeline('feature-extraction', MODEL, { dtype: 'q8' });
   const run = async (texts, prefix) => {
     const out = [];
@@ -30,6 +30,22 @@ const ficheText = (f) => `${f.q} ${plainAnswer(f.a).slice(0, 220)}`;
   fs.mkdirSync(OUT, { recursive: true });
   fs.writeFileSync(path.join(OUT, 'faq-emb.json'), JSON.stringify({ model: MODEL, e5: E5, dim, count: vecs.length, data: buf.toString('base64') }));
   console.log(`faq-emb.json : ${vecs.length} fiches, ${dim} dimensions (${MODEL})`);
+
+  // Le site sert lui-même le modèle et le moteur (même adresse que les pages) : pas de dépendance à
+  // Hugging Face ni à un CDN depuis le navigateur, et le téléchargement marche partout.
+  const SITE = path.join(OUT, '..');
+  const copy = (from, to) => { fs.mkdirSync(path.dirname(to), { recursive: true }); fs.copyFileSync(from, to); };
+  const modelDir = path.join(env.cacheDir, MODEL);
+  for (const f of ['config.json', 'tokenizer.json', 'tokenizer_config.json', 'special_tokens_map.json', 'onnx/model_quantized.onnx']) {
+    const from = path.join(modelDir, f);
+    if (fs.existsSync(from)) copy(from, path.join(SITE, 'models', MODEL, f));
+    else if (!f.startsWith('special')) throw new Error('fichier du modèle absent : ' + from);
+  }
+  const tjs = path.dirname(require.resolve('@huggingface/transformers'));
+  copy(path.join(tjs, 'transformers.min.js'), path.join(SITE, 'lib', 'transformers.min.js'));
+  const ort = path.join(path.dirname(require.resolve('onnxruntime-web')), '');
+  for (const f of ['ort-wasm-simd-threaded.mjs', 'ort-wasm-simd-threaded.wasm']) copy(path.join(ort, f), path.join(SITE, 'lib', f));
+  console.log('modèle et moteur copiés dans site/models et site/lib');
 
   if (process.argv.includes('--dump')) {
     const qs = [];
