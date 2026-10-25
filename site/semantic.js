@@ -51,7 +51,8 @@ const semantique = (() => {
           // Tous les fichiers n'annoncent pas leur taille : on affiche ce qui est reçu, sur ~130 Mo au total.
           files[p.file] = p.loaded || 0;
           const got = Object.values(files).reduce((a, x) => a + x, 0);
-          set('loading', `Téléchargement du modèle : ${Math.round(got / 1e6)} Mo sur environ 130`);
+          // Le gros fichier du modèle ne donne pas toujours sa progression : on n'affiche le compte que s'il avance vraiment.
+          set('loading', got > 30e6 ? `Téléchargement du modèle : ${Math.round(got / 1e6)} Mo sur environ 130` : 'Téléchargement du modèle (environ 130 Mo, une seule fois)…');
         },
       });
       await embed('query: test', { pooling: 'mean', normalize: true });
