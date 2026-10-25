@@ -1,5 +1,7 @@
 name: probe2
 on: push
+permissions:
+  contents: write
 jobs:
   probe:
     runs-on: ubuntu-latest
@@ -14,5 +16,6 @@ jobs:
           for s in teysa-karlov edgar-markov atraxa-praetors-voice lathril-blade-of-the-elves korvold-fae-cursed-king meren-of-clan-nel-toth krenko-mob-boss sephiroth-fabled-soldier; do
             curl -s -o site/data/edh/$s.json "https://json.edhrec.com/pages/commanders/$s.json"; echo "$s $(wc -c < site/data/edh/$s.json)"
           done
-      - uses: actions/upload-artifact@v4
-        with: { name: data, path: site/data, retention-days: 3 }
+      - run: |
+          cd site/data && git init -q -b probe-data && git add -A && git -c user.name=bot -c user.email=bot@x commit -qm data
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" probe-data
