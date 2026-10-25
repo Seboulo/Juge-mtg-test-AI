@@ -4,14 +4,18 @@ on:
     branches: [probe2]
   workflow_dispatch:
 jobs:
-  e2e:
+  cards:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          path: probe
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          path: main
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: npm init -y >/dev/null && npm i playwright@1.49.1 && npx playwright install --with-deps chromium
-        working-directory: e2e
-      - run: node e2e.js
-        working-directory: e2e
+      - run: npm ci && cp ../../probe/e2e/embed-cards.js scripts/ && node scripts/embed-cards.js --eval
+        working-directory: main/build
