@@ -47,11 +47,11 @@ const semantique = (() => {
       embed = await pipeline('feature-extraction', fiches.model, {
         dtype: 'q8',
         progress_callback: (p) => {
-          if (p.status !== 'progress' || !p.total) return;
-          files[p.file] = [p.loaded, p.total];
-          const all = Object.values(files);
-          const got = all.reduce((a, x) => a + x[0], 0), tot = all.reduce((a, x) => a + x[1], 0);
-          set('loading', `Téléchargement du modèle : ${Math.round(got / 1e6)} / ${Math.round(tot / 1e6)} Mo`);
+          if (p.status !== 'progress' || !p.file) return;
+          // Tous les fichiers n'annoncent pas leur taille : on affiche ce qui est reçu, sur ~130 Mo au total.
+          files[p.file] = p.loaded || 0;
+          const got = Object.values(files).reduce((a, x) => a + x, 0);
+          set('loading', `Téléchargement du modèle : ${Math.round(got / 1e6)} Mo sur environ 130`);
         },
       });
       await embed('query: test', { pooling: 'mean', normalize: true });
