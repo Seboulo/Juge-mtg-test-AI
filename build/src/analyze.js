@@ -129,7 +129,7 @@ function findCombos(db, combos, inDeck, identity) {
     const missing = cards.filter(c => !inDeck.has(c.id));
     const item = { cards: cards.map(c => ({ id: c.id, name: c.name, img: c.img })), produces: prod.map(i => combos.features[i]), requires: (req || []).map(i => combos.templates[i]) };
     if (!missing.length) complete.push(item);
-    else if (missing.length === 1 && cards.length <= 3 && legal(missing[0]) && !near.has(missing[0].id)) near.set(missing[0].id, { ...item, missing: { id: missing[0].id, name: missing[0].name, img: missing[0].img, gc: !!missing[0].gc } });
+    else if (missing.length === 1 && cards.length >= 2 && cards.length <= 3 && legal(missing[0]) && !near.has(missing[0].id)) near.set(missing[0].id, { ...item, missing: { id: missing[0].id, name: missing[0].name, img: missing[0].img, gc: !!missing[0].gc } });
   }
   // Les combos les plus courts d'abord, sans doublons (même ensemble de cartes).
   const seen = new Set();
@@ -140,19 +140,23 @@ function findCombos(db, combos, inDeck, identity) {
 
 // Estimation du bracket officiel (1 à 5) d'après ce qu'on peut voir dans la liste : Game Changers, combos à 2 cartes,
 // destruction massive de terrains, tours supplémentaires. Le niveau réel dépend aussi de l'intention du joueur.
-function estimateBracket(list, combos) {
+function estimateBracket(list, combos, commanders) {
   const gc = list.filter(e => e.card.gc).map(e => e.card.name);
   const mld = list.filter(e => /(destroy|exile) all (nonbasic )?lands|each player sacrifices (all|[^.]* )lands|destroy all (artifacts, creatures, and )?lands|lands don't untap/i.test(e.card.text || '')).map(e => e.card.name);
   const turns = list.filter(e => /takes? an extra turn/i.test(e.card.text || '')).map(e => e.card.name);
   const two = combos ? combos.complete.filter(x => x.cards.length === 2) : [];
+  // Un combo à 3 cartes dont l'une est le commandant (toujours disponible) vaut presque un combo à 2 cartes.
+  const cmdIds = new Set(commanders.map(c => c.id));
+  const withCmd = combos ? combos.complete.filter(x => x.cards.length === 3 && x.cards.some(c => cmdIds.has(c.id))) : [];
   const reasons = [];
   if (gc.length) reasons.push(`${gc.length} Game Changer${gc.length > 1 ? 's' : ''} : ${gc.join(', ')}`);
   if (two.length) reasons.push(`${two.length} combo${two.length > 1 ? 's' : ''} à 2 cartes : ${two.slice(0, 3).map(x => x.cards.map(c => c.name).join(' + ')).join(' ; ')}`);
+  if (withCmd.length) reasons.push(`${withCmd.length} combo${withCmd.length > 1 ? 's' : ''} avec le commandant + 2 cartes : ${withCmd.slice(0, 2).map(x => x.cards.map(c => c.name).join(' + ')).join(' ; ')}`);
   if (mld.length) reasons.push(`destruction massive de terrains : ${mld.join(', ')}`);
   if (turns.length) reasons.push(`tours supplémentaires : ${turns.join(', ')}`);
   let level, label;
   if (gc.length > 3 || mld.length) { level = 4; label = 'Optimisé (4) ou plus'; }
-  else if (gc.length || two.length) { level = 3; label = two.length ? 'Amélioré (3), voire 4 si les combos sortent tôt' : 'Amélioré (3)'; }
+  else if (gc.length || two.length || withCmd.length) { level = 3; label = two.length || withCmd.length ? 'Amélioré (3), voire 4 si les combos sortent tôt' : 'Amélioré (3)'; }
   else { level = 2; label = 'Cœur (2) ou Exhibition (1)'; }
   if (turns.length >= 3 && level < 4) reasons.push('plusieurs tours supplémentaires : à éviter en bracket 2, pas d\'enchaînement en 3');
   if (!combos) reasons.push('combos non vérifiés (liste Commander Spellbook indisponible)');
@@ -191,10 +195,12 @@ function analyzeDeck(db, entries, extra = {}) {
     for (const k of r) if (roles[k]) roles[k].push(c.name);
     if (!commanders.includes(c)) perCard.push({ c, r, mv });
   }
-  // Thèmes du deck lui-même (pas seulement du commandant) : un thème suivi par au moins 10 cartes compte aussi.
+  // Thèmes du deck lui-même (pas seulement du commandant) : un thème suivi par assez de cartes compte aussi.
   for (const t of THEMES) {
     if (themes.some(x => x.key === t.key)) continue;
-    if (perCard.filter(x => test(t.fits, x.c)).length >= 10) themes.push({ ...t, fromDeck: true });
+    // Les thèmes « par type de carte » demandent plus de cartes : tout deck joue une dizaine d'artefacts ou d'éphémères.
+    const need = ['artifacts', 'spells', 'enchantments', 'draw', 'combat'].includes(t.key) ? 16 : 12;
+    if (perCard.filter(x => test(t.fits, x.c)).length >= need) themes.push({ ...t, fromDeck: true });
   }
   for (const x of perCard) x.fit = themes.filter(t => test(t.fits, x.c)).map(t => t.label);
   const avg = nonland ? mvSum / nonland : 0;
@@ -210,7 +216,12 @@ function analyzeDeck(db, entries, extra = {}) {
   const colors = [...identity].filter(k => k in pips).map(k => ({ color: k, name: COLOR_NAME[k], pips: pips[k], pipShare: pips[k] / pipTotal, sources: sources[k], low: lands > 0 && pips[k] / pipTotal > 0.15 && sources[k] < Math.max(8, Math.round(lands * pips[k] / pipTotal * 0.75)) }));
 
   const combos = findCombos(db, extra.combos, inDeck, identity);
-  const bracket = estimateBracket(list, combos);
+  const bracket = estimateBracket(list, combos, commanders);
+  // Combos à une carte près : d'abord ceux dont la carte manquante est jouée avec ce commandant (EDHREC).
+  if (combos && extra.edhrec) {
+    const inc = new Map(extra.edhrec.cards.map(x => [x.id, x.inclusion]));
+    combos.near.sort((a, b) => (inc.get(b.missing.id) || 0) - (inc.get(a.missing.id) || 0) || a.cards.length - b.cards.length);
+  }
   const comboCards = new Set((combos ? combos.complete : []).flatMap(x => x.cards.map(c => c.id)));
   const ed = extra.edhrec && extra.edhrec.cards.length ? extra.edhrec : null;
   if (ed) return { ...withEdhrec(db, ed, { list, commanders, identity, inDeck, themes, checks, perCard, comboCards, lands, landTarget }),
