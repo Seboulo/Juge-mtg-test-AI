@@ -30,6 +30,14 @@ const OUT = path.join(__dirname, '..', '..', 'site', 'data');
   const meta = { ...read('meta.json'), webBuilt: new Date().toISOString() };
   const files = { cards, rulings, rules, 'cartes-fr': pick(read('cartes-fr.json')), 'noms-fr': pick(read('noms-fr.json')), meta };
 
+  // Textes français : si Scryfall a coupé la pagination en route (limite de requêtes), on garde ceux d'avant
+  // plutôt que de publier une base où la plupart des noms français manquent.
+  const nFr = Object.keys(files['noms-fr']).length;
+  if (nFr < 20000) {
+    console.warn(`Textes français incomplets (${nFr} noms) : version précédente conservée.`);
+    delete files['noms-fr']; delete files['cartes-fr'];
+  }
+
   // Rôles et combos : facultatifs. En cas d'échec, l'analyseur se contente de ses règles de texte.
   const indexOf = new Map(cards.map((c, i) => [c.id, i]));
   try { files.roles = await fetchTags(indexOf); } catch (e) { console.warn('Rôles Scryfall Tagger ignorés : ' + e.message); }

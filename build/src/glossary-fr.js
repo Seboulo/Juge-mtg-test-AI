@@ -97,6 +97,14 @@ const SYN = {
   haste: 'celerite', indestructible: 'indestructible', infect: 'infection', poison: 'poison', goad: 'provoquer', monarch: 'monarque',
   layer: 'couche', layers: 'couches', apnap: 'ordre declenchee', concede: 'quitte partie', abandonner: 'quitte partie', abandonne: 'quitte partie',
   elimine: 'quitte partie', perd: 'perd', fizzle: 'cible illegale', ninja: 'ninjutsu', morph: 'face cachee', facedown: 'face cachee',
+  // Langage de table (ajouts du 25 octobre 2026, vérifiés sur un banc témoin) :
+  generaux: 'commandants', creve: 'meurt', tape: 'attaque', taper: 'attaquer', tapes: 'attaque', tapent: 'attaquent',
+  mec: 'joueur', gars: 'joueur', pote: 'joueur', relancer: 'lancer', relance: 'lancer', recast: 'lancer', recaster: 'lancer', caster: 'lancer', cast: 'lancer',
+  forcer: 'provoquer', force: 'provoquer', contrer: 'contrecarre', contrecarrer: 'contrecarre', couleurs: 'identite couleur',
+  bottes: 'equipement', boots: 'equipement', greaves: 'equipement', equiper: 'equipement', meuler: 'meule', surveiller: 'surveillance',
+  surveil: 'surveillance', scry: 'regard', infini: 'boucle infinie', infinie: 'boucle infinie', storm: 'tempete copie', tempete: 'copie',
+  provocation: 'provoquer', legendaire: 'legende', legendaires: 'legende',
+  gratuit: 'sans payer cout', gratuitement: 'sans payer cout', free: 'sans payer cout', adverse: 'adversaire', abandon: 'quitte partie',
 };
 
 // Ajoute les synonymes aux mots d'une question.

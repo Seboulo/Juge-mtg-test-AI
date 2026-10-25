@@ -119,6 +119,8 @@ $('#askForm').addEventListener('submit', async (e) => {
   html += interHtml(c.interactions, c.cards.length);
   if (best && c.faqConfident) {
     html += `<div class="best"><span class="tag">Fiche la plus proche</span>${best.sem ? ' <span class="tag sem">trouvée par le sens</span>' : ''}<h2>${esc(best.q)}</h2><p>${inline(esc(best.a))}</p>${best.rules.length ? `<p class="small muted">Règles : ${best.rules.map(r => `<span class="rule-ref" data-r="${r}">${r}</span>`).join(', ')}</p>` : ''}</div>`;
+  } else if (c.faq.length && c.interactions.points.length) {
+    // Les règles de l'interaction répondent déjà : les fiches proches passent dans « Autres fiches ».
   } else if (c.faq.length) {
     // Pas de fiche sûre : on propose les plus proches, la réponse s'ouvre en touchant la question.
     html += `<div class="maybe"><p class="muted">Pas de fiche sûre pour cette question. Tu voulais dire :</p>${c.faq.slice(0, 3).map(f => `<details class="faq-hit maybe-hit"><summary><strong>${esc(f.q)}</strong></summary><p>${inline(esc(f.a))}</p>${f.rules.length ? `<p class="small muted">Règles : ${refs(f.rules)}</p>` : ''}</details>`).join('')}${typeof semantique !== 'undefined' && semantique.state === 'off' ? '<p class="small muted">Question posée avec tes mots ? La <a href="#" class="go-params">recherche par le sens</a> (dans Paramètres) comprend mieux les reformulations.</p>' : ''}</div>`;
@@ -127,7 +129,7 @@ $('#askForm').addEventListener('submit', async (e) => {
   }
   const assists = suggestAssistants(question);
   if (assists.length) html += '<h4>Assistants guidés</h4><div class="pill-row">' + assists.map(a => `<button class="pill go-assist" data-a="${a.id}">${a.icon} ${esc(a.title)}</button>`).join('') + '</div>';
-  const others = c.faq.slice(best && c.faqConfident ? 1 : 3);
+  const others = c.faq.slice(best && c.faqConfident ? 1 : c.interactions.points.length ? 0 : 3);
   if (others.length) html += '<h4>Autres fiches</h4>' + others.map(f => `<details class="faq-hit"><summary><strong>${esc(f.q)}</strong></summary><p>${inline(esc(f.a))}</p>${f.rules.length ? `<p class="small muted">Règles : ${f.rules.map(r => `<span class="rule-ref" data-r="${r}">${r}</span>`).join(', ')}</p>` : ''}</details>`).join('');
   if (c.cards.length) html += '<h4>Cartes citées : texte Oracle et rulings officiels</h4>' + c.cards.map(k => `<details class="faq-hit" ${c.cards.length <= 2 ? 'open' : ''}><summary><strong>${esc(k.name)}</strong>${k.nameFr ? ' · ' + esc(k.nameFr) : ''} <span class="muted small">${k.rulings.length} ruling(s)</span></summary>${cardHtml(k, true)}</details>`).join('');
   if (c.unknown.length) html += `<p class="small muted">Introuvable dans la base : ${c.unknown.map(esc).join(', ')} (essaie le nom anglais, ou mets le nom entre [[ ]]).</p>`;
