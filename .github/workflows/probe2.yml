@@ -12,10 +12,10 @@ jobs:
       - run: npm ci && npm run data
         working-directory: build
       - run: |
-          mkdir -p site/data/edh
-          for s in teysa-karlov edgar-markov atraxa-praetors-voice lathril-blade-of-the-elves korvold-fae-cursed-king meren-of-clan-nel-toth krenko-mob-boss sephiroth-fabled-soldier; do
-            curl -s -o site/data/edh/$s.json "https://json.edhrec.com/pages/commanders/$s.json"; echo "$s $(wc -c < site/data/edh/$s.json)"
-          done
+          for m in Xenova/multilingual-e5-small Xenova/paraphrase-multilingual-MiniLM-L12-v2; do curl -s "https://huggingface.co/api/models/$m/tree/main/onnx" | python3 -c "import json,sys;[print('$m',f['path'],f.get('size')) for f in json.load(sys.stdin)]"; done
+          EMB_MODEL=Xenova/paraphrase-multilingual-MiniLM-L12-v2 node scripts/embed.js --dump
+          EMB_MODEL=Xenova/multilingual-e5-small node scripts/embed.js --dump
+        working-directory: build
       - run: |
           cd site/data && git init -q -b probe-data && git add -A && git -c user.name=bot -c user.email=bot@x commit -qm data
           git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" probe-data
