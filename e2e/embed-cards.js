@@ -53,6 +53,29 @@ const EVAL = [
 
   if (process.argv.includes('--eval')) {
     const qv = await run(EVAL.map(e => e[0]), 'query: ');
+    // Mélange mots-clés + sens (même code que le site), sur le texte Oracle anglais.
+    {
+      const { createCardSearch } = require('../src/card-search');
+      const all = rd('cards').filter(c => c.cmdr !== 'not_legal');
+      const cs = createCardSearch({ cards: all, frCards: fr });
+      const byId = new Map(all.map(c => [c.id, c]));
+      const vecs = await run(cards.map(oracle), 'passage: ');
+      const simsOf = (k) => { const m = new Map(); vecs.forEach((v, i) => m.set(cards[i].id, v.reduce((a, x, j) => a + x * qv[k][j], 0))); return m; };
+      const S = EVAL.map((e, k) => simsOf(k));
+      for (const [semW, semSpan] of [[0, 0.06], [0.5, 0.06], [1, 0.06], [1, 0.1], [1.5, 0.08], [2, 0.1], [3, 0.1]]) {
+        let h1 = 0, h10 = 0;
+        const lines = [];
+        EVAL.forEach(([q, exp], k) => {
+          const names = cs.search(q, { limit: 10, sims: semW ? S[k] : null, semW, semSpan }).map(x => byId.get(x.id).name);
+          if (exp.includes(names[0])) h1++;
+          if (names.some(nm => exp.includes(nm))) h10++;
+          lines.push(`${names.some(nm => exp.includes(nm)) ? 'OK ' : '-- '} ${q} → ${names.slice(0, 5).join(' | ')}`);
+        });
+        console.log(`\n=== mélange : sens ${semW}, écart ${semSpan} → en tête ${h1}/${EVAL.length}, dans les 10 ${h10}/${EVAL.length}`);
+        if (semW === 1 && semSpan === 0.06 || semW === 2) console.log(lines.join('\n'));
+      }
+      return;
+    }
     for (const [label, textOf] of [['oracle anglais', oracle], ['français si dispo', (c) => french(c, fr[c.id])]]) {
       const vecs = await run(cards.map(textOf), 'passage: ');
       for (const pop of [0, 0.02]) {

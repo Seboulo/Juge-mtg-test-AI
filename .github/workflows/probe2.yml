@@ -17,5 +17,5 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: npm ci && cp ../../probe/e2e/embed-cards.js scripts/ && node scripts/embed-cards.js --eval
+      - run: npm ci && cp ../../probe/e2e/embed-cards.js scripts/ && cp ../../probe/e2e/card-search.js src/ && node scripts/embed-cards.js --eval
         working-directory: main/build
