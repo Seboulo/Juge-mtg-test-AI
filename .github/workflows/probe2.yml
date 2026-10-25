@@ -1,21 +1,17 @@
 name: probe2
-on: push
-permissions:
-  contents: write
+on:
+  push:
+    branches: [probe2]
+  workflow_dispatch:
 jobs:
-  probe:
+  e2e:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 20 }
-      - run: npm ci && npm run data
-        working-directory: build
-      - run: |
-          for m in Xenova/multilingual-e5-small Xenova/paraphrase-multilingual-MiniLM-L12-v2; do curl -s "https://huggingface.co/api/models/$m/tree/main/onnx" | python3 -c "import json,sys;[print('$m',f['path'],f.get('size')) for f in json.load(sys.stdin)]"; done
-          EMB_MODEL=Xenova/paraphrase-multilingual-MiniLM-L12-v2 node scripts/embed.js --dump
-          EMB_MODEL=Xenova/multilingual-e5-small node scripts/embed.js --dump
-        working-directory: build
-      - run: |
-          cd site/data && git init -q -b probe-data && git add -A && git -c user.name=bot -c user.email=bot@x commit -qm data
-          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" probe-data
+        with:
+          node-version: 20
+      - run: npm init -y >/dev/null && npm i playwright@1.49.1 && npx playwright install --with-deps chromium
+        working-directory: e2e
+      - run: node e2e.js
+        working-directory: e2e
