@@ -124,7 +124,8 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--g
 .suggest div.sel, .suggest div:hover { background: var(--bg3); }
 
 /* Cartes */
-.search-head { display: flex; gap: 10px; margin-bottom: 12px; }
+.search-head { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
+.search-head input { flex: 1 1 220px; min-width: 0; }
 .search-head .btn { white-space: nowrap; }
 .split { display: flex; gap: 16px; align-items: flex-start; }
 .results { list-style: none; margin: 0; padding: 0; width: 340px; flex-shrink: 0; max-height: 70vh; overflow-y: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--bg2); }
