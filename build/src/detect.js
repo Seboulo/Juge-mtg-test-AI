@@ -15,7 +15,7 @@ const FRENCH = ('mon ma mes ton ta tes son sa ses notre votre leur leurs un une 
 // Surnoms courants chez les joueurs → nom exact de la carte.
 const ALIASES = {
   'rip': 'Rest in Peace', 'stp': 'Swords to Plowshares', 'swords': 'Swords to Plowshares', 'path': 'Path to Exile',
-  'oring': 'Oblivion Ring', 'o ring': 'Oblivion Ring', 'thoracle': "Thassa's Oracle", 'thassa oracle': "Thassa's Oracle",
+  'oring': 'Oblivion Ring', 'anneau d oubli': 'Oblivion Ring', 'anneau de l oubli': 'Oblivion Ring', 'o ring': 'Oblivion Ring', 'thoracle': "Thassa's Oracle", 'thassa oracle': "Thassa's Oracle",
   'labman': 'Laboratory Maniac', 'lab man': 'Laboratory Maniac', 'lab maniac': 'Laboratory Maniac', 'hoof': 'Craterhoof Behemoth',
   'tef prot': "Teferi's Protection", 'teferi protection': "Teferi's Protection", 'rhystic': 'Rhystic Study', 'tithe': 'Smothering Tithe',
   'dockside': 'Dockside Extortionist', 'demonic': 'Demonic Tutor', 'vamp tutor': 'Vampiric Tutor', 'vampiric': 'Vampiric Tutor',

@@ -220,24 +220,7 @@ label.inline select { width: auto; }
 .ly-row { margin-bottom: 8px; }
 .ly-row select { max-width: 520px; }
 .ok-t { color: var(--ok); } .bad-t { color: var(--bad); }
-.game-head { margin-bottom: 14px; flex-wrap: wrap; }
-.players { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); gap: 14px; }
-.player { background: var(--bg2); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
-.player.dead { border-color: var(--bad); opacity: .8; }
-.p-name { font-size: 18px; font-weight: 600; color: var(--gold2); outline: none; border-bottom: 1px dashed transparent; }
-.p-name:focus { border-bottom-color: var(--gold); }
-.p-dead { color: var(--bad); font-weight: 600; }
-.life { display: flex; align-items: center; justify-content: center; gap: 6px; }
-.life-v { font-size: 44px; font-weight: 700; min-width: 90px; text-align: center; }
 .btn.sm { padding: 3px 9px; font-size: 13px; }
-.counters { display: flex; flex-direction: column; gap: 6px; }
-.counters > div { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.cmd-dmg { border-top: 1px solid var(--line); padding-top: 8px; }
-.cd-row { display: flex; align-items: center; gap: 6px; margin: 4px 0; }
-.cd-row span { flex: 1; }
-.cd-row b { min-width: 26px; text-align: center; }
-.cd-row.near b { color: var(--warn); }
-.cd-row.lethal b { color: var(--bad); }
 .ly-row .ly-n { min-width: 18px; color: var(--gold2); }
 .ly-row .ly-d { flex: 1.2; }
 .ly-row .ly-l { flex: 1.4; }
@@ -303,14 +286,80 @@ label.inline select { width: auto; }
 .tile-w { font-size: 12px; color: var(--muted); line-height: 1.2; }
 
 .saved-decks { margin-top: 10px; align-items: center; }
-.game-bar { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; background: var(--bg2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; margin: 10px 0; }
+
+/* Partie : table de jeu */
+#tab-partie { --seat-h: 200px; }
+.game-setup { background: var(--bg2); border: 1px solid var(--line); border-radius: 10px; padding: 8px 14px; margin-bottom: 12px; }
+.game-setup summary { cursor: pointer; font-weight: 600; color: var(--gold2); padding: 4px 0; }
+.game-setup .row { margin: 8px 0; align-items: center; gap: 8px 14px; }
+.table-wrap { display: flex; flex-direction: column; gap: 10px; background: radial-gradient(ellipse at center, var(--bg3), var(--bg)); border: 1px solid var(--line); border-radius: 22px; padding: 12px; }
+.seat-row { display: grid; grid-template-columns: repeat(var(--n, 1), minmax(0, 1fr)); gap: 10px; }
+
+.seat { container-type: inline-size; position: relative; min-height: var(--seat-h); border-radius: 16px; background: var(--bg2); border: 2px solid color-mix(in srgb, var(--pc) 55%, var(--line)); display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 8px 6px; overflow: hidden; isolation: isolate; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
+.seat::before { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(180deg, color-mix(in srgb, var(--pc) 22%, transparent), transparent 60%); }
+.seat.has-art::before { background: linear-gradient(180deg, color-mix(in srgb, var(--bg2) 55%, transparent), color-mix(in srgb, var(--bg2) 88%, transparent)), var(--art) center / cover no-repeat; }
+.seat.active { border-color: var(--pc); box-shadow: 0 0 0 3px color-mix(in srgb, var(--pc) 45%, transparent), 0 6px 22px #0004; }
+.seat.sel { outline: 2px dashed var(--gold); outline-offset: 2px; }
+.seat.out { filter: grayscale(.85); opacity: .6; }
+.seat.far { transform: rotate(180deg); }
+.seat-head { background: none; border: 0; color: var(--text); cursor: pointer; text-align: center; font: inherit; padding: 2px 8px; border-radius: 8px; max-width: 100%; display: flex; flex-direction: column; align-items: center; }
+.seat-head:hover { background: color-mix(in srgb, var(--pc) 18%, transparent); }
+.seat-name { font-weight: 700; color: var(--pc); font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; filter: brightness(1.15); }
+.seat-cmdr { font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.seat-life { position: relative; display: flex; align-items: center; justify-content: center; width: 100%; flex: 1; }
+.life-num { font-family: var(--serif); font-weight: 700; font-size: clamp(34px, 30cqi, 84px); line-height: 1; font-variant-numeric: tabular-nums; pointer-events: none; text-shadow: 0 2px 10px color-mix(in srgb, var(--bg) 80%, transparent); }
+.tap { position: absolute; top: 0; bottom: 0; width: 50%; background: none; border: 0; color: var(--muted); font-size: 26px; cursor: pointer; border-radius: 12px; display: flex; align-items: center; padding: 0 8px; }
+.tap.minus { left: 0; justify-content: flex-start; } .tap.plus { right: 0; justify-content: flex-end; }
+.tap:hover { background: color-mix(in srgb, var(--pc) 10%, transparent); }
+.tap:active { background: color-mix(in srgb, var(--pc) 25%, transparent); }
+.delta { position: absolute; top: -2px; right: 4px; font-weight: 700; font-size: 15px; padding: 0 6px; border-radius: 6px; pointer-events: none; }
+.delta.neg { color: var(--bad); background: var(--bad-bg); } .delta.pos { color: var(--ok); background: var(--ok-bg); }
+.seat-badges { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; min-height: 20px; }
+.bdg { font-size: 12px; background: color-mix(in srgb, var(--bg) 75%, transparent); border: 1px solid var(--line); border-radius: 6px; padding: 0 5px; font-variant-numeric: tabular-nums; }
+.bdg.hot { color: var(--bad); border-color: var(--bad); }
+.seat-out { position: absolute; bottom: 30px; left: 6px; right: 6px; text-align: center; color: var(--bad); font-weight: 700; font-size: 13px; }
+.seat-turn-unused { position: absolute; top: 6px; right: 8px; font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: var(--pc); font-weight: 700; filter: brightness(1.2); }
+.game-bar { display: flex; flex-direction: column; gap: 6px; background: var(--bg2); border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px; }
+.gb-main, .gb-tools { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; }
 .game-bar .turn { font-family: var(--serif); font-size: 18px; }
 .game-bar .timer { font-variant-numeric: tabular-nums; color: var(--gold2); font-weight: 600; }
-.game-bar .roll { font-weight: 700; color: var(--accent); min-width: 6em; }
-.player.active { outline: 2px solid var(--gold); }
-.hist { display: flex; flex-wrap: wrap; gap: 4px; font-size: 12px; color: var(--muted); margin-top: 4px; }
+.game-bar .roll { font-weight: 700; color: var(--accent); }
+.gb-tips .win { color: var(--gold2); font-size: 15px; }
+.gb-tips { color: var(--muted); border-top: 1px dashed var(--line); padding-top: 6px; }
+.btn.on { border-color: var(--gold); color: var(--gold2); background: var(--chosen-bg); }
+.sheet-wrap { order: 5; }
+.sheet { background: var(--bg2); border: 2px solid var(--pc); border-radius: 14px; padding: 12px 14px; }
+.sheet-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
+.sh-name { background: transparent; border: 0; border-bottom: 1px dashed var(--line); border-radius: 0; padding: 2px 0; font-size: 17px; font-weight: 700; color: var(--pc); flex: 1 1 140px; min-width: 0; }
+.sh-colors { display: flex; gap: 4px; }
+.sw { width: 22px; height: 22px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; }
+.sw.on { border-color: var(--text); }
+.sh-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); gap: 14px 20px; }
+.sh-col { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.sh-col label input:not([type=checkbox]) { width: 100%; margin-top: 2px; }
+.stp { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.stp-l { font-size: 13px; color: var(--muted); flex-basis: 100%; }
+.stp b { min-width: 2.4em; text-align: center; font-size: 17px; font-variant-numeric: tabular-nums; }
+.sh-flags { gap: 6px; }
+.cd-row { display: flex; align-items: center; gap: 5px; padding: 3px 0 3px 8px; border-left: 4px solid var(--sc); margin: 3px 0; }
+.cd-src { flex: 1; min-width: 0; font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cd-row b { min-width: 26px; text-align: center; font-variant-numeric: tabular-nums; }
+.cd-row.near b { color: var(--warn); } .cd-row.lethal b { color: var(--bad); }
+.spark { width: 100%; max-width: 320px; height: 70px; }
+.spark polyline { fill: none; stroke: var(--pc); stroke-width: 2.5; stroke-linejoin: round; }
+.spark .zero { stroke: var(--bad); stroke-dasharray: 4 4; stroke-width: 1; }
+.hist { display: flex; flex-wrap: wrap; gap: 4px; font-size: 12px; color: var(--muted); }
 .hist span { background: var(--bg3); border-radius: 4px; padding: 0 5px; font-variant-numeric: tabular-nums; }
 .hist .down { color: var(--bad); } .hist .up { color: var(--ok); }
+/* Mode table : tout l'écran, joueurs du fond retournés vers eux */
+.table-wrap.fs { position: fixed; inset: 0; z-index: 40; border-radius: 0; border: 0; padding: max(8px, env(safe-area-inset-top, 0px)) max(8px, env(safe-area-inset-right, 0px)) max(8px, env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-left, 0px)); background: var(--bg); gap: 6px; overflow: auto; }
+.table-wrap.fs .seat-row { flex: 1; min-height: 0; }
+.table-wrap.fs .seat { min-height: 0; height: 100%; }
+.table-wrap.fs .life-num { font-size: clamp(44px, min(32cqi, 14vmin), 130px); }
+.table-wrap.fs .game-bar { padding: 4px 8px; }
+.table-wrap.fs .gb-tools, .table-wrap.fs .gb-tips { display: none; }
+.table-wrap.fs .sheet-wrap { position: fixed; inset: auto 8px 8px 8px; max-height: 70vh; overflow: auto; z-index: 41; box-shadow: 0 -8px 30px #0007; border-radius: 14px; }
+@media (max-width: 560px) { #tab-partie { --seat-h: 150px; } .seat-name { font-size: 14px; } .tap { font-size: 20px; padding: 0 4px; } .game-bar .turn { font-size: 16px; } }
 
 /* Analyse de deck */
 .an-grid { display: flex; flex-direction: column; gap: 4px; margin: 10px 0; }
@@ -388,7 +437,7 @@ label.inline select { width: auto; }
       <button class="tab" data-tab="apropos"><span>⚙</span><b class="long">Paramètres</b><b class="short">Réglages</b></button>
     </nav>
     <div class="db-status" id="dbStatus">Chargement de la base…</div>
-    <div class="version muted small">Version 3 · images, EDHREC, combos</div>
+    <div class="version muted small">Version 4 · table de jeu</div>
   </aside>
 
   <main>
@@ -446,15 +495,7 @@ label.inline select { width: auto; }
     </section>
 
     <!-- PARTIE -->
-    <section id="tab-partie" class="panel">
-      <div class="row game-head">
-        <label class="inline">Joueurs <select id="nbPlayers"><option>2</option><option>3</option><option selected>4</option><option>5</option><option>6</option></select></label>
-        <button id="newGame" class="btn">Nouvelle partie</button>
-        <span class="muted small">Touche un nom pour le modifier. Les compteurs sont gardés sur cet appareil.</span>
-      </div>
-      <div id="gameBar" class="game-bar"></div>
-      <div id="players" class="players"></div>
-    </section>
+    <section id="tab-partie" class="panel"></section>
 
     <!-- CARTES -->
     <section id="tab-cartes" class="panel">
@@ -531,5 +572,6 @@ label.inline select { width: auto; }
 <script src="engine.js"></script>
 <script src="assistants.js"></script>
 <script src="app.js"></script>
+<script src="game.js"></script>
 </body>
 </html>

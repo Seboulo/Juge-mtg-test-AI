@@ -759,105 +759,6 @@ document.addEventListener('click', async (e) => {
   go.ctrl = null; go.textContent = '↻ Relancer l\'IA';
 });
 
-// ---------- Suivi de partie ----------
-const gameState = loadGame();
-function newPlayers(n) { return Array.from({ length: n }, (_, i) => ({ name: `Joueur ${i + 1}`, life: 40, poison: 0, casts: [0, 0], partners: false, cmd: {}, out: false })); }
-function loadGame() { try { const g = JSON.parse(localStorage.getItem('partie')); if (g && g.players) return g; } catch {} return { players: newPlayers(4) }; }
-function saveGame() { try { localStorage.setItem('partie', JSON.stringify(gameState)); } catch {} }
-$('#nbPlayers').value = String(gameState.players.length);
-$('#newGame').addEventListener('click', () => { gameState.players = newPlayers(+$('#nbPlayers').value); Object.assign(gameState, { turn: 0, active: 0, gameStart: 0, turnStart: 0 }); saveGame(); renderGame(); });
-
-// Tour en cours, minuteurs, dés et pièce.
-const fmtTime = (ms) => { const t = Math.max(0, Math.floor(ms / 1000)); const h = Math.floor(t / 3600), m = Math.floor(t / 60) % 60, sec = t % 60; return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(sec).padStart(2, '0'); };
-let lastRoll = '';
-function renderBar() {
-  const g = gameState, P = g.players;
-  const name = P[g.active || 0] ? P[g.active || 0].name : '';
-  $('#gameBar').innerHTML = g.turn
-    ? `<span class="turn">Tour ${g.turn} · <b>${esc(name)}</b></span><span class="muted small">ce tour <span class="timer" id="tTurn">${fmtTime(Date.now() - g.turnStart)}</span> · partie <span class="timer" id="tGame">${fmtTime(Date.now() - g.gameStart)}</span></span><button class="btn sm primary" data-bar="next">Joueur suivant ▸</button>`
-    : `<button class="btn sm primary" data-bar="start">▶ Lancer la partie (tours et minuteur)</button>`;
-  $('#gameBar').innerHTML += `<span class="row" style="gap:6px"><button class="btn sm" data-bar="d6">d6</button><button class="btn sm" data-bar="d20">d20</button><button class="btn sm" data-bar="coin">Pile ou face</button><button class="btn sm" data-bar="first">Qui commence ?</button><span class="roll" aria-live="polite">${esc(lastRoll)}</span></span>`;
-}
-$('#gameBar').addEventListener('click', (e) => {
-  const b = e.target.closest('[data-bar]');
-  if (!b) return;
-  const g = gameState, n = g.players.length, rnd = (k) => 1 + Math.floor(crypto.getRandomValues(new Uint32Array(1))[0] / 2 ** 32 * k);
-  const act = b.dataset.bar;
-  if (act === 'start') Object.assign(g, { turn: 1, active: g.active || 0, gameStart: Date.now(), turnStart: Date.now() });
-  if (act === 'next') {
-    let i = g.active, k = 0;
-    do { i = (i + 1) % n; if (i === g.first) g.turn++; k++; } while (g.players[i].out && k < n);
-    Object.assign(g, { active: i, turnStart: Date.now() });
-  }
-  if (act === 'd6') lastRoll = 'd6 : ' + rnd(6);
-  if (act === 'd20') lastRoll = 'd20 : ' + rnd(20);
-  if (act === 'coin') lastRoll = rnd(2) === 1 ? 'Pile' : 'Face';
-  if (act === 'first') { const i = rnd(n) - 1; lastRoll = g.players[i].name + ' commence'; if (!g.turn) g.active = i; }
-  if (act === 'start' || act === 'first') g.first = g.active;
-  saveGame(); renderGame();
-});
-setInterval(() => {
-  if (!gameState.turn || !$('#tTurn')) return;
-  $('#tTurn').textContent = fmtTime(Date.now() - gameState.turnStart);
-  $('#tGame').textContent = fmtTime(Date.now() - gameState.gameStart);
-}, 1000);
-// Historique des points de vie : un point par tour de jeu (les changements du même tour sont regroupés).
-function logLife(p) {
-  const t = gameState.turn || 0;
-  p.hist ||= [{ t: 0, life: 40 }];
-  const last = p.hist[p.hist.length - 1];
-  if (last.t === t && p.hist.length > 1) last.life = p.life; else p.hist.push({ t, life: p.life });
-  if (p.hist.length > 40) p.hist.splice(1, 1);
-}
-const histHtml = (p) => {
-  if (!p.hist || p.hist.length < 2) return '';
-  return `<div class="hist" title="Points de vie à la fin de chaque tour">${p.hist.slice(-10).map((h, i, a) => { const prev = i ? a[i - 1].life : null; return `<span class="${prev == null ? '' : h.life < prev ? 'down' : h.life > prev ? 'up' : ''}">${h.t ? 'T' + h.t + ' ' : ''}${h.life}</span>`; }).join('')}</div>`;
-};
-$('#nbPlayers').addEventListener('change', () => { const n = +$('#nbPlayers').value; const p = gameState.players; while (p.length < n) p.push(newPlayers(p.length + 1).pop()); p.length = n; saveGame(); renderGame(); });
-function cmdKey(j, k) { return `${j}-${k}`; }
-function renderGame() {
-  renderBar();
-  const P = gameState.players;
-  $('#players').innerHTML = P.map((p, i) => {
-    const maxCmd = Math.max(0, ...Object.values(p.cmd));
-    const dead = p.life <= 0 || p.poison >= 10 || maxCmd >= 21;
-    const why = p.life <= 0 ? 'points de vie à 0' : p.poison >= 10 ? '10 marqueurs poison' : maxCmd >= 21 ? '21 blessures d\'un même commandant' : '';
-    const sources = [];
-    P.forEach((q, j) => { if (j !== i) { sources.push({ j, k: 0, label: q.name + (q.partners ? ' (1)' : '') }); if (q.partners) sources.push({ j, k: 1, label: q.name + ' (2)' }); } });
-    return `<div class="player ${dead ? 'dead' : ''} ${gameState.turn && gameState.active === i ? 'active' : ''}" data-i="${i}">
-      <div class="p-name" contenteditable="true" spellcheck="false" data-i="${i}">${esc(p.name)}</div>
-      ${dead ? `<div class="p-dead">Perd la partie : ${why}</div>` : ''}
-      <div class="life"><button class="btn sm" data-act="life" data-d="-5">−5</button><button class="btn sm" data-act="life" data-d="-1">−1</button><span class="life-v">${p.life}</span><button class="btn sm" data-act="life" data-d="1">+1</button><button class="btn sm" data-act="life" data-d="5">+5</button></div>${histHtml(p)}
-      <div class="counters">
-        <div><span class="muted small">Poison</span><button class="btn sm" data-act="poison" data-d="-1">−</button><b>${p.poison}</b><button class="btn sm" data-act="poison" data-d="1">+</button></div>
-        ${[0, ...(p.partners ? [1] : [])].map(k => `<div><span class="muted small">Commandant${p.partners ? ' ' + (k + 1) : ''} lancé ${p.casts[k]}× · prochaine taxe <b>+{${p.casts[k] * 2}}</b></span><button class="btn sm" data-act="cast" data-k="${k}" data-d="-1">−</button><button class="btn sm" data-act="cast" data-k="${k}" data-d="1">Lancé depuis la zone</button></div>`).join('')}
-        <label class="toggle small"><input type="checkbox" data-act="partners" ${p.partners ? 'checked' : ''}> Deux commandants (partenaires)</label>
-      </div>
-      <div class="cmd-dmg"><span class="muted small">Blessures de commandant subies</span>
-        ${sources.map(s => { const v = p.cmd[cmdKey(s.j, s.k)] || 0; return `<div class="cd-row ${v >= 21 ? 'lethal' : v >= 15 ? 'near' : ''}"><span>${esc(s.label)}</span><button class="btn sm" data-act="cmd" data-key="${cmdKey(s.j, s.k)}" data-d="-1">−</button><b>${v}</b><button class="btn sm" data-act="cmd" data-key="${cmdKey(s.j, s.k)}" data-d="1">+1</button><button class="btn sm" data-act="cmd" data-key="${cmdKey(s.j, s.k)}" data-d="5">+5</button></div>`; }).join('')}
-        <p class="small muted">Ajouter des blessures de commandant retire aussi les points de vie correspondants.</p>
-      </div>
-    </div>`;
-  }).join('');
-  $$('.player').forEach(el => {
-    const p = P[+el.dataset.i];
-    el.addEventListener('click', (e) => {
-      const b = e.target.closest('[data-act]');
-      if (!b || b.tagName === 'INPUT') return;
-      const d = +b.dataset.d;
-      if (b.dataset.act === 'life') p.life += d;
-      if (b.dataset.act === 'poison') p.poison = Math.max(0, p.poison + d);
-      if (b.dataset.act === 'cast') { const k = +b.dataset.k; p.casts[k] = Math.max(0, p.casts[k] + d); }
-      if (b.dataset.act === 'cmd') { const cur = p.cmd[b.dataset.key] || 0; const nv = Math.max(0, cur + d); p.life -= (nv - cur); p.cmd[b.dataset.key] = nv; }
-      if (['life', 'cmd'].includes(b.dataset.act)) logLife(p);
-      saveGame(); renderGame();
-    });
-    $('[data-act="partners"]', el).addEventListener('change', (e) => { p.partners = e.target.checked; saveGame(); renderGame(); });
-    $('.p-name', el).addEventListener('blur', (e) => { p.name = e.target.textContent.trim() || p.name; saveGame(); renderGame(); });
-    $('.p-name', el).addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } });
-  });
-}
-
 // ---------- Fenêtre modale ----------
 function openModal(html) { $('#modalBody').innerHTML = html; $('#modal').classList.remove('hidden'); verifyRuleRefs($('#modalBody')); }
 function closeModal() { $('#modal').classList.add('hidden'); }
@@ -871,7 +772,7 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal
   renderFaq();
   $('#faqCount').textContent = faqData.length;
   renderAssistMenu();
-  renderGame();
+  if (typeof renderGame === "function") renderGame();
   renderReports();
   loadSettings();
   refreshStatus();

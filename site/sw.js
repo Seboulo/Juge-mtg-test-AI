@@ -1,7 +1,7 @@
 // Mode hors ligne : le site demande toujours d'abord la dernière version au serveur
 // (une simple vérification quand rien n'a changé), et se sert de la copie gardée seulement sans connexion.
-const CACHE = 'juge-mtg-v2';
-const SHELL = ['./', 'index.html', 'app.js', 'assistants.js', 'engine.js', 'manifest.webmanifest', 'icon.svg',
+const CACHE = 'juge-mtg-v3';
+const SHELL = ['./', 'index.html', 'app.js', 'game.js', 'assistants.js', 'engine.js', 'manifest.webmanifest', 'icon.svg',
   'data/cards.json.gz', 'data/rules.json.gz', 'data/cartes-fr.json.gz', 'data/noms-fr.json.gz', 'data/meta.json.gz', 'data/rulings.json.gz'];
 
 self.addEventListener('install', (e) => {

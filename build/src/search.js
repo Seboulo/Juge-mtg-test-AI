@@ -59,6 +59,7 @@ function createSearch(faqFile) {
       .filter(x => x.s > 0.3).sort((a, b) => b.s - a.s).slice(0, limit)
       .map(x => ({ ...pubFaq(x.f), score: Math.min(100, Math.round(x.s * 100)), strong: strongOf(x.f), precise,
         cardFiche: !!(x.f.card && cardNames.includes(x.f.card)),
+        cardHits: cardNames.filter(n => x.f.plainAll.includes(' ' + plain(n) + ' ')).length,
         related: cardNames.some(n => x.f.plainAll.includes(' ' + plain(n) + ' ')) || groups.some(g => g.extra && g.members.some(m => x.f.tok.has(m))) }));
   }
 
@@ -92,7 +93,8 @@ function createSearch(faqFile) {
     const hits = searchFaq(q || question, 5, [...new Set(acts)], cards.map(c => c.name));
     // Fiche affichée en tête si elle correspond bien, ou si elle est nettement devant les autres.
     const h = hits[0];
-    const enough = h && (h.cardFiche || h.strong >= 2 || (h.strong >= 1 && h.strong * 2 >= h.precise && (!cards.length || h.related)));
+    // Une fiche qui cite toutes les cartes de la question (ou au moins deux) est aussi une bonne piste.
+    const enough = h && (h.cardFiche || h.strong >= 2 || (cards.length && h.cardHits >= Math.min(2, cards.length)) || (h.strong >= 1 && h.strong * 2 >= h.precise && (!cards.length || h.related)));
     const confident = enough && (h.score >= 45 || (h.score >= 30 && h.score >= 1.4 * ((hits[1] && hits[1].score) || 0)));
     const interactions = analyse(db, cards, question);
     // Règles : d'abord celles citées par les interactions et la fiche FAQ retenue, puis la recherche par mots.

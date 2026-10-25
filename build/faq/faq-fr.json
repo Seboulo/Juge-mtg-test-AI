@@ -107,7 +107,7 @@
    "903.8",
    "601.2f"
   ],
-  "tags": "reduction cout sans payer son cout de mana additionnel taxe"
+  "tags": "reduction cout sans payer son cout de mana additionnel taxe augmente thalia"
  },
  {
   "cat": "Zones et commandant",
@@ -118,7 +118,7 @@
    "903.9a",
    "704.6d"
   ],
-  "tags": "meurt mort cimetiere zone de commandement action basee sur un etat declenchee dies blood artist zulaport declenche meurt"
+  "tags": "meurt mort cimetiere zone de commandement action basee sur un etat declenchee dies blood artist zulaport declenche meurt detruit renvoyer murder"
  },
  {
   "cat": "Zones et commandant",
@@ -129,7 +129,7 @@
    "704.6d",
    "610.3"
   ],
-  "tags": "exil exile oblivion ring swords to plowshares jusqu'a ce que zone de commandement"
+  "tags": "exil exile oblivion ring swords to plowshares jusqu'a ce que zone de commandement anneau d oubli cercle de l oubli"
  },
  {
   "cat": "Zones et commandant",
@@ -188,7 +188,7 @@
   "rules": [
    "903.10a"
   ],
-  "tags": "vol controle adversaire blessures commandant act of treason vole voler vol steal treachery act of treason"
+  "tags": "vol controle adversaire blessures commandant act of treason vole voler vol steal treachery act of treason control magic vole commandant adverse controle"
  },
  {
   "cat": "Blessures de commandant",
@@ -375,7 +375,7 @@
   "rules": [
    "903.5"
   ],
-  "tags": "interdite banned liste ban legalite game changer bracket"
+  "tags": "interdite banned liste ban legalite game changer bracket banni bannie interdit bannissement"
  },
  {
   "cat": "Taxe de commandant",
@@ -537,7 +537,7 @@
    "702.18",
    "702.16"
   ],
-  "tags": "linceul shroud defense talismanique hexproof protection debt cibler"
+  "tags": "linceul shroud defense talismanique hexproof protection debt cibler ciblee cibler une creature lightning bolt"
  },
  {
   "cat": "Effets complexes",
@@ -574,7 +574,7 @@
   "rules": [
    "704.5j"
   ],
-  "tags": "regle de legende legendaire deux copies meme nom choisir clone"
+  "tags": "regle de legende legendaire deux copies meme nom choisir clone clone deux exemplaires garde un seul"
  },
  {
   "cat": "Effets complexes",
@@ -593,7 +593,7 @@
   "rules": [
    "702.12"
   ],
-  "tags": "indestructible detruire sacrifier exiler endurance 0 indestructible balai wrath survit"
+  "tags": "indestructible detruire sacrifier exiler endurance 0 indestructible balai wrath survit tue tuer -x/-x massacre"
  },
  {
   "cat": "Effets complexes",
@@ -769,7 +769,7 @@
   "rules": [
    "302.6"
   ],
-  "tags": "vol voler controle changement mal d invocation celerite haste attaquer tap act of treason threaten summoning sickness"
+  "tags": "vol voler controle changement mal d invocation celerite haste attaquer tap act of treason threaten summoning sickness volee vole mal d invocation"
  },
  {
   "cat": "Effets complexes",
@@ -804,7 +804,7 @@
    "605.3a",
    "608.2b"
   ],
-  "tags": "sacrifice cout repondre reponse altar ashnod viscera seer outlet sacrifier en reponse ciblee sacrifie en reponse je sacrifie ma creature"
+  "tags": "sacrifice cout repondre reponse altar ashnod viscera seer outlet sacrifier en reponse ciblee sacrifie en reponse je sacrifie ma creature swords to plowshares en reponse au"
  },
  {
   "cat": "Effets complexes",
@@ -1557,7 +1557,7 @@
    "107.4b",
    "107.4c"
   ],
-  "tags": "mana incolore colorless generique couleur symbole c payer cout sol ring wastes difference"
+  "tags": "mana incolore colorless generique couleur symbole c payer cout wastes difference"
  },
  {
   "cat": "Mots-clés et bases",
@@ -1645,7 +1645,7 @@
    "115.4",
    "408.1"
   ],
-  "tags": "cibler commandant zone de commandement cible detruire atteindre lightning bolt permanent"
+  "tags": "cibler commandant zone de commandement cible detruire atteindre permanent"
  },
  {
   "cat": "Pile et timing",
