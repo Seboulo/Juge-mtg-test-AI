@@ -1,0 +1,30 @@
+// Second banc témoin (25 octobre 2026, écrit après tous les réglages, jamais utilisé pour régler) :
+// mesure honnête de la recherche sur des questions nouvelles.
+// [question, cartes attendues, motif d'interaction, fiche(s) acceptée(s)]
+module.exports = [
+  ["quand mon commandant meurt est-ce que mon Blood Artist se déclenche ?", ["Blood Artist"], null, [10, 14]],
+  ["mon général part en exil avec un anneau d'oubli, je peux le récupérer ?", ["Oblivion Ring"], null, [11, 46]],
+  ["la taxe de commandant monte si je le renvoie en main moi-même ?", [], null, [38, 89, 12]],
+  ["les 21 blessures de commandant c'est par commandant ou au total ?", [], null, 15],
+  ["peut-on avoir un commandant non légendaire ?", [], null, [4, 67]],
+  ["un terrain qui fait du mana noir dans un deck sans noir, c'est autorisé ?", [], null, [3, 85]],
+  ["si un joueur meurt pendant son tour, que devient le tour ?", [], null, 22],
+  ["on choisit l'ordre de nos déclenchements comment en multi ?", [], null, 23],
+  ["je peux bloquer avec une créature qui vient d'arriver ?", [], null, 55],
+  ["un sort qui exile tout, les jetons reviennent ?", [], null, 57],
+  ["la célérité sert à quoi ?", [], null, 133],
+  ["ma créature avec vol peut être bloquée par une créature avec portée ?", [], null, 132],
+  ["le piétinement contre un bloqueur indestructible ?", [], null, [138, 54, 58]],
+  ["la régénération marche contre le sacrifice ?", [], null, 144],
+  ["on attaque comment un planeswalker ?", [], null, 145],
+  ["je peux répondre à la capacité de mana d'un adversaire ?", [], null, 60],
+  ["combien de terrains je peux poser par tour ?", [], null, 141],
+  ["un effet jusqu'à la fin du tour dure jusqu'à quand exactement ?", [], null, 142],
+  ["c'est quoi la différence entre détruire et sacrifier ?", [], null, 143],
+  ["deux effets de remplacement en même temps, qui choisit ?", [], null, 28],
+  ["un commandant avec infect tue avec 10 poisons ou 21 blessures ?", [], null, [42, 147]],
+  ["une copie d'un sort, c'est un sort lancé pour la tempête ?", [], null, [50, 149]],
+  ["le jour et la nuit, qu'est-ce qui fait basculer ?", [], null, 163],
+  ["je proliférer, les marqueurs -1/-1 aussi augmentent ?", [], null, 160],
+  ["comment montrer qu'une boucle est infinie sans la faire mille fois ?", [], null, 162],
+];

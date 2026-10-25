@@ -10,7 +10,7 @@ const unElide = (s) => String(s).replace(/\b([ldjnsmtc]|qu)['’](?=[A-Za-zÀ-ÿ
 
 // Mots courants (français et termes de jeu) : un nom de carte d'un seul mot qui en fait partie
 // (« Clone », « Exile », « Silence »…) n'est retenu que s'il est écrit avec une majuscule ou entre [[ ]].
-const FRENCH = ('mon ma mes ton ta tes son sa ses notre votre leur leurs un une des le la les de du au aux et ou mais donc or ni car est sont a ai as ont avec sans sur sous dans par pour contre entre vers chez quand comment pourquoi quoi que qui quel quelle quels quelles est-ce ce cet cette ces il elle ils elles on je tu nous vous se si ne pas plus moins tres trop peu tout tous toute toutes autre autres meme deja encore aussi alors puis ensuite avant apres pendant depuis jusqu jusque fois tour tours partie jeu joueur joueurs adversaire adversaires carte cartes main pile zone mort meurt mourir vie vies point points degats blessures blessure attaque attaquer bloque bloquer combat cible cibler effet effets sort sorts capacite capacites declenche declenchement jeton jetons copie copier clone exil exile exiler detruit detruire sacrifie sacrifier sacrifice retour retourne renvoie renvoyer contre contrer contrecarre commandant commandants general taxe couleur couleurs terrain terrains creature creatures artefact enchantement rituel ephemere legendaire marqueur marqueurs mana cout payer gratuit regle regles juge question reponse oui non bien mal bon mauvais grand petit premier premiere dernier fin debut infini infinie boucle combo double triple moitie silence panique terreur destruction fureur colere chaos ordre force endurance vol garde vigilance celerite protection gain perte perdre gagner victoire defaite').split(' ');
+const FRENCH = ('mon ma mes ton ta tes son sa ses notre votre leur leurs un une des le la les de du au aux et ou mais donc or ni car est sont a ai as ont avec sans sur sous dans par pour contre entre vers chez quand comment pourquoi quoi que qui quel quelle quels quelles est-ce ce cet cette ces il elle ils elles on je tu nous vous se si ne pas plus moins tres trop peu tout tous toute toutes autre autres meme deja encore aussi alors puis ensuite avant apres pendant depuis jusqu jusque fois tour tours partie jeu joueur joueurs adversaire adversaires carte cartes main pile zone mort meurt mourir vie vies point points degats blessures blessure attaque attaquer bloque bloquer combat cible cibler effet effets sort sorts capacite capacites declenche declenchement jeton jetons copie copier clone exil exile exiler detruit detruire sacrifie sacrifier sacrifice retour retourne renvoie renvoyer contre contrer contrecarre commandant commandants general taxe couleur couleurs terrain terrains creature creatures artefact enchantement rituel ephemere legendaire marqueur marqueurs mana cout payer gratuit regle regles juge question reponse oui non bien mal bon mauvais grand petit premier premiere dernier fin debut infini infinie boucle combo double triple moitie silence panique terreur destruction fureur colere chaos ordre force endurance vol garde vigilance celerite protection gain perte perdre gagner victoire defaite surcharge surchargee surcharger').split(' ');
 
 // Surnoms courants chez les joueurs → nom exact de la carte.
 const ALIASES = {
@@ -209,7 +209,9 @@ class CardDetector {
         const lower = !caps.slice(i, i + len).some(Boolean);
         // Exception : un mot sans article devant (« je lance damnation », « damnation tue… ») qui est le nom d'une carte très jouée.
         const asName = len === 1 && e && !e.alias && EXTRA_FR.has(phrase) && !RULE_WORDS.has(phrase) && !ARTICLES.has(words[i - 1]) && this.popular(e);
-        if (e && !e.alias && lower && !asName && ws.filter(w => !this.glue.has(w)).length <= 1 && (this.frOnly.has(phrase) || this.theOnly.has(phrase) || (len === 1 && EXTRA_FR.has(phrase)))) continue;
+        // Nom de plusieurs mots courants, en minuscules, d'une carte très jouée : « tour de commandement », « colère de dieu ».
+        const famous = len >= 3 && e && !e.alias && phrase.length >= 12 && !ARTICLES.has(ws[0]) && this.popular(e);
+        if (e && !e.alias && lower && !asName && !famous && ws.filter(w => !this.glue.has(w)).length <= 1 && (this.frOnly.has(phrase) || this.theOnly.has(phrase) || (len === 1 && EXTRA_FR.has(phrase)))) continue;
         if (e && e.alias) {
           hit = { e, len, phrase, typo: false };
         } else if (e && !allCommon) {
@@ -217,6 +219,8 @@ class CardDetector {
           hit = { e, len, phrase, typo: false };
         } else if (e && allCommon && caps[i] && len >= 1 && phrase.length >= 4 && i > 0) {
           // Mot courant écrit avec une majuscule en milieu de phrase : « un Clone de mon commandant ».
+          hit = { e, len, phrase, typo: false };
+        } else if (e && famous) {
           hit = { e, len, phrase, typo: false };
         } else if (e && asName) {
           hit = { e, len, phrase, typo: false };
