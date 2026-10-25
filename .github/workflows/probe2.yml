@@ -13,5 +13,5 @@ jobs:
           node-version: 20
       - run: npm init -y >/dev/null && npm i playwright@1.49.1 && npx playwright install --with-deps chromium
         working-directory: e2e
-      - run: node dbg.js
+      - run: node e2e.js
         working-directory: e2e
